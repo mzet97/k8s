@@ -15,7 +15,6 @@ spec:
         app: redis-cluster
     spec:
       terminationGracePeriodSeconds: 30
-      # Garante pods espalhados por nós diferentes
       affinity:
         podAntiAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -23,16 +22,24 @@ spec:
               matchExpressions:
               - key: app
                 operator: In
-                values: ["redis-cluster"]
-            topologyKey: "kubernetes.io/hostname"
+                values:
+                - redis-cluster
+            topologyKey: kubernetes.io/hostname
       containers:
       - name: redis
         image: redis:7-alpine
         imagePullPolicy: IfNotPresent
-        command: ["sh","-lc"]
+        command:
+        - sh
+        - -lc
         args:
-          - |
-            exec redis-server /usr/local/etc/redis/redis.conf               --requirepass "$REDIS_PASSWORD"               --masterauth "$REDIS_PASSWORD"               --cluster-announce-ip "$POD_IP"               --cluster-announce-port 6379               --cluster-announce-bus-port 16379
+        - |
+          exec redis-server /usr/local/etc/redis/redis.conf \
+            --requirepass "$REDIS_PASSWORD" \
+            --masterauth "$REDIS_PASSWORD" \
+            --cluster-announce-ip "$POD_IP" \
+            --cluster-announce-port 6379 \
+            --cluster-announce-bus-port 16379
         env:
         - name: REDIS_PASSWORD
           valueFrom:
@@ -55,7 +62,10 @@ spec:
           mountPath: /data
         readinessProbe:
           exec:
-            command: ["sh","-lc","redis-cli -a "$REDIS_PASSWORD" ping | grep -q PONG"]
+            command:
+            - sh
+            - -lc
+            - redis-cli -a "$REDIS_PASSWORD" ping | grep -q PONG
           initialDelaySeconds: 5
           periodSeconds: 5
         livenessProbe:
@@ -74,7 +84,8 @@ spec:
   - metadata:
       name: data
     spec:
-      accessModes: ["ReadWriteOnce"]
+      accessModes:
+      - ReadWriteOnce
       resources:
         requests:
           storage: 10Gi
