@@ -1,0 +1,12 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: minio-s3-tls
+  namespace: minio-operator
+spec:
+  secretName: minio-s3-tls
+  dnsNames:
+  - s3.home.arpa
+  issuerRef:
+    kind: ClusterIssuer
+    name: local-ca

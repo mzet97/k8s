@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-console
+  namespace: minio-operator
+spec:
+  selector:
+    v1.min.io/tenant: microk8s
+  ports:
+    - name: console
+      port: 9090
+      targetPort: 9090

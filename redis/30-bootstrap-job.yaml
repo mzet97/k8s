@@ -1,0 +1,40 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: redis-cluster-bootstrap
+  namespace: redis
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: bootstrap
+        image: redis:7-alpine
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-auth
+              key: REDIS_PASSWORD
+        command: ["sh","-lc"]
+        args:
+          - |
+            set -e
+            echo "Aguardando pods ficarem prontos..."
+            for i in $(seq 1 60); do
+              READY=$(getent hosts redis-cluster-0.redis-cluster-headless.redis.svc.cluster.local                            redis-cluster-1.redis-cluster-headless.redis.svc.cluster.local                            redis-cluster-2.redis-cluster-headless.redis.svc.cluster.local | wc -l)
+              if [ "$READY" -eq 3 ]; then break; fi
+              sleep 3
+            done
+            # Testa porta 6379 em cada pod
+            for h in redis-cluster-0.redis-cluster-headless.redis.svc.cluster.local                      redis-cluster-1.redis-cluster-headless.redis.svc.cluster.local                      redis-cluster-2.redis-cluster-headless.redis.svc.cluster.local; do
+              for i in $(seq 1 60); do
+                (echo PING | nc -w2 $h 6379 >/dev/null 2>&1) && break
+                sleep 2
+              done
+            done
+            echo "Criando cluster (3 mestres, sem réplicas)..."
+            yes yes | redis-cli --cluster create               redis-cluster-0.redis-cluster-headless.redis.svc.cluster.local:6379               redis-cluster-1.redis-cluster-headless.redis.svc.cluster.local:6379               redis-cluster-2.redis-cluster-headless.redis.svc.cluster.local:6379               --cluster-replicas 0 -a "$REDIS_PASSWORD"
+            echo "OK - Cluster criado."
