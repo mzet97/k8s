@@ -6,6 +6,7 @@ metadata:
 spec:
   serviceName: redis-cluster-headless
   replicas: 3
+  podManagementPolicy: Parallel
   selector:
     matchLabels:
       app: redis-cluster
@@ -17,21 +18,20 @@ spec:
       terminationGracePeriodSeconds: 30
       affinity:
         podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-          - labelSelector:
-              matchExpressions:
-              - key: app
-                operator: In
-                values:
-                - redis-cluster
-            topologyKey: kubernetes.io/hostname
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values: ["redis-cluster"]
+              topologyKey: kubernetes.io/hostname
       containers:
       - name: redis
         image: redis:7-alpine
         imagePullPolicy: IfNotPresent
-        command:
-        - sh
-        - -lc
+        command: ["sh","-lc"]
         args:
         - |
           exec redis-server /usr/local/etc/redis/redis.conf \
@@ -62,10 +62,7 @@ spec:
           mountPath: /data
         readinessProbe:
           exec:
-            command:
-            - sh
-            - -lc
-            - redis-cli -a "$REDIS_PASSWORD" ping | grep -q PONG
+            command: ["sh","-lc","redis-cli -a \"$REDIS_PASSWORD\" ping | grep -q PONG"]
           initialDelaySeconds: 5
           periodSeconds: 5
         livenessProbe:
@@ -84,8 +81,7 @@ spec:
   - metadata:
       name: data
     spec:
-      accessModes:
-      - ReadWriteOnce
+      accessModes: ["ReadWriteOnce"]
       resources:
         requests:
           storage: 10Gi
