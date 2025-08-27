@@ -27,6 +27,7 @@ kubectl -n redis get pods -w
 # 4) Crie o cluster (Job de bootstrap)
 kubectl apply -f redis/30-bootstrap-job.yaml
 kubectl -n redis logs job/redis-cluster-bootstrap -f
+kubectl apply -f redis/40-external-access.yaml
 ```
 
 ## Verificação
