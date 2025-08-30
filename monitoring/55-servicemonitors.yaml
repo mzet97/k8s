@@ -1,0 +1,72 @@
+---
+# ServiceMonitor para Loki
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: loki
+  namespace: monitoring
+  labels:
+    app: loki
+spec:
+  selector:
+    matchLabels:
+      app: loki
+  endpoints:
+    - port: http-metrics
+      interval: 30s
+      path: /metrics
+      scheme: http
+---
+# ServiceMonitor para Mimir
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: mimir
+  namespace: monitoring
+  labels:
+    app: mimir
+spec:
+  selector:
+    matchLabels:
+      app: mimir
+  endpoints:
+    - port: http-metrics
+      interval: 30s
+      path: /metrics
+      scheme: http
+---
+# ServiceMonitor para Tempo
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: tempo
+  namespace: monitoring
+  labels:
+    app: tempo
+spec:
+  selector:
+    matchLabels:
+      app: tempo
+  endpoints:
+    - port: tempo-prom-metrics
+      interval: 30s
+      path: /metrics
+      scheme: http
+---
+# ServiceMonitor para Pyroscope
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: pyroscope
+  namespace: monitoring
+  labels:
+    app: pyroscope
+spec:
+  selector:
+    matchLabels:
+      app: pyroscope
+  endpoints:
+    - port: http
+      interval: 30s
+      path: /metrics
+      scheme: http

@@ -1,0 +1,66 @@
+# Serviço para Redis Master
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-master
+  namespace: redis
+  labels:
+    app: redis-master
+    role: master
+spec:
+  selector:
+    app: redis-master
+    role: master
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: 6379
+  - name: redis-tls
+    port: 6380
+    targetPort: 6380
+  type: ClusterIP
+---
+# Serviço Headless para Redis Réplicas
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-replica-headless
+  namespace: redis
+  labels:
+    app: redis-replica
+    role: replica
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: redis-replica
+    role: replica
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: 6379
+  - name: redis-tls
+    port: 6380
+    targetPort: 6380
+---
+# Serviço para Redis Réplicas (Load Balancer)
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-replica
+  namespace: redis
+  labels:
+    app: redis-replica
+    role: replica
+spec:
+  selector:
+    app: redis-replica
+    role: replica
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: 6379
+  - name: redis-tls
+    port: 6380
+    targetPort: 6380
+  type: ClusterIP

@@ -4,14 +4,73 @@ metadata:
   name: redis-config
   namespace: redis
 data:
-  redis.conf: |
+  redis-master.conf: |
+    # Configuração Master
     port 6379
     bind 0.0.0.0
     protected-mode no
-    # Cluster
-    cluster-enabled yes
-    cluster-config-file /data/nodes.conf
-    cluster-node-timeout 5000
+    
     # Persistência
+    save 900 1
+    save 300 10
+    save 60 10000
     appendonly yes
+    appendfsync everysec
     dir /data
+    
+    # Performance
+    maxmemory 1gb
+    maxmemory-policy allkeys-lru
+    tcp-keepalive 300
+    timeout 0
+    
+    # Logs
+    loglevel notice
+    logfile "/data/redis-master.log"
+    
+    # TLS Configuration
+    tls-port 6380
+    port 0
+    tls-cert-file /tls/tls.crt
+    tls-key-file /tls/tls.key
+    tls-ca-cert-file /tls/ca.crt
+    tls-protocols "TLSv1.2 TLSv1.3"
+  
+  redis-replica.conf: |
+    # Configuração Replica
+    port 6379
+    bind 0.0.0.0
+    protected-mode no
+    
+    # Replicação
+    replicaof redis-master.redis.svc.cluster.local 6380
+    replica-read-only yes
+    replica-serve-stale-data yes
+    replica-priority 100
+    
+    # Persistência
+    save 900 1
+    save 300 10
+    save 60 10000
+    appendonly yes
+    appendfsync everysec
+    dir /data
+    
+    # Performance
+    maxmemory 1gb
+    maxmemory-policy allkeys-lru
+    tcp-keepalive 300
+    timeout 0
+    
+    # Logs
+    loglevel notice
+    logfile "/data/redis-replica.log"
+    
+    # TLS Configuration
+    tls-port 6380
+    port 0
+    tls-cert-file /tls/tls.crt
+    tls-key-file /tls/tls.key
+    tls-ca-cert-file /tls/ca.crt
+    tls-protocols "TLSv1.2 TLSv1.3"
+    tls-replication yes

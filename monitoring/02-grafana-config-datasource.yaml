@@ -6,12 +6,91 @@ metadata:
   labels:
     grafana_datasource: "1"
 data:
-  prometheus.yaml: |
+  datasources.yaml: |
     apiVersion: 1
     datasources:
+    # Prometheus - Métricas
     - name: Prometheus
       type: prometheus
       access: proxy
       url: http://prometheus.monitoring.svc:9090
       isDefault: true
       editable: true
+      jsonData:
+        httpMethod: POST
+        manageAlerts: true
+        prometheusType: Prometheus
+        prometheusVersion: 2.40.0
+        cacheLevel: 'High'
+        disableRecordingRules: false
+        incrementalQueryOverlapWindow: 10m
+    
+    # Mimir - Métricas de longo prazo
+    - name: Mimir
+      type: prometheus
+      access: proxy
+      url: http://mimir.monitoring.svc:8080/prometheus
+      editable: true
+      jsonData:
+        httpMethod: POST
+        prometheusType: Mimir
+        prometheusVersion: 2.40.0
+        cacheLevel: 'High'
+        disableRecordingRules: false
+        incrementalQueryOverlapWindow: 10m
+    
+    # Loki - Logs
+    - name: Loki
+      type: loki
+      access: proxy
+      url: http://loki.monitoring.svc:3100
+      editable: true
+      jsonData:
+        maxLines: 1000
+        derivedFields:
+          - datasourceUid: tempo
+            matcherRegex: "traceID=(\\w+)"
+            name: TraceID
+            url: "$${__value.raw}"
+    
+    # Tempo - Distributed Tracing
+    - name: Tempo
+      type: tempo
+      access: proxy
+      url: http://tempo.monitoring.svc:3200
+      uid: tempo
+      editable: true
+      jsonData:
+        httpMethod: GET
+        tracesToLogs:
+          datasourceUid: loki
+          tags: ['job', 'instance', 'pod', 'namespace']
+          mappedTags: [{ key: 'service.name', value: 'service' }]
+          mapTagNamesEnabled: false
+          spanStartTimeShift: '1h'
+          spanEndTimeShift: '1h'
+          filterByTraceID: false
+          filterBySpanID: false
+        tracesToMetrics:
+          datasourceUid: prometheus
+          tags: [{ key: 'service.name', value: 'service' }, { key: 'job' }]
+          queries:
+            - name: 'Sample query'
+              query: 'sum(rate(tempo_spanmetrics_latency_bucket{$$__tags}[5m]))'
+        serviceMap:
+          datasourceUid: prometheus
+        nodeGraph:
+          enabled: true
+        search:
+          hide: false
+        lokiSearch:
+          datasourceUid: loki
+    
+    # Pyroscope - Continuous Profiling
+    - name: Pyroscope
+      type: pyroscope
+      access: proxy
+      url: http://pyroscope.monitoring.svc:4040
+      editable: true
+      jsonData:
+        minStep: '15s'
