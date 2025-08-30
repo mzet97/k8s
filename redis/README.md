@@ -98,13 +98,21 @@ microk8s kubectl apply -f 00-namespace.yaml
 # 2) Aplicar a senha que você configurou
 microk8s kubectl apply -f 01-secret.yaml
 
-# 3) Aplicar as configurações do Redis
+# 3) Aplicar certificados TLS (CRÍTICO - aguardar conclusão)
 microk8s kubectl apply -f 02-tls-certificates.yaml
+
+# AGUARDAR o job do CA completar (OBRIGATÓRIO)
+microk8s kubectl -n redis wait --for=condition=complete job/redis-ca-generator --timeout=300s
+
+# Verificar se o certificado foi criado
+microk8s kubectl -n redis wait --for=condition=ready certificate/redis-server-cert --timeout=300s
+
+# 4) Aplicar outras configurações
 microk8s kubectl apply -f 03-rbac.yaml
 microk8s kubectl apply -f 10-configmap.yaml
 ```
 
-**✅ Verificação**: Você deve ver mensagens como "created" ou "configured" para cada comando.
+**✅ Verificação**: Você deve ver mensagens como "created" ou "configured" para cada comando. **IMPORTANTE**: Aguarde os certificados serem criados antes de continuar.
 
 ### Passo 3: 🌐 Criar os Serviços de Rede
 
@@ -525,10 +533,42 @@ microk8s kubectl -n redis get poddisruptionbudget
 ### 🎯 Ordem de Instalação Recomendada
 
 **Instalação Básica** (para começar):
-1. Arquivos 00-03 (namespace, senha, certificados, permissões)
-2. Arquivos 10-13 (configurações e rede)
-3. Arquivos 21-22 (servidores Redis)
-4. Arquivo 31 (configurar replicação)
+1. **Namespace e configurações básicas**:
+   ```bash
+   microk8s kubectl apply -f 00-namespace.yaml
+   microk8s kubectl apply -f 01-secret.yaml
+   microk8s kubectl apply -f 03-rbac.yaml
+   ```
+
+2. **Certificados TLS (IMPORTANTE: aguardar conclusão)**:
+   ```bash
+   microk8s kubectl apply -f 02-tls-certificates.yaml
+   
+   # Aguardar o job do CA completar
+   microk8s kubectl -n redis wait --for=condition=complete job/redis-ca-generator --timeout=300s
+   
+   # Verificar se o certificado foi criado
+   microk8s kubectl -n redis wait --for=condition=ready certificate/redis-server-cert --timeout=300s
+   ```
+
+3. **Configurações e serviços**:
+   ```bash
+   microk8s kubectl apply -f 10-configmap.yaml
+   microk8s kubectl apply -f 11-headless-svc.yaml
+   microk8s kubectl apply -f 12-client-svc.yaml
+   microk8s kubectl apply -f 13-master-svc.yaml
+   ```
+
+4. **Servidores Redis**:
+   ```bash
+   microk8s kubectl apply -f 21-master-statefulset.yaml
+   microk8s kubectl apply -f 22-replica-statefulset.yaml
+   ```
+
+5. **Configurar replicação**:
+   ```bash
+   microk8s kubectl apply -f 31-replication-setup-job.yaml
+   ```
 
 **Recursos Avançados** (depois que o básico estiver funcionando):
 1. Arquivo 50 (backup automático)
@@ -539,6 +579,31 @@ microk8s kubectl -n redis get poddisruptionbudget
 ## 🔧 Resolução de Problemas
 
 ### ❌ Problemas Comuns e Soluções
+
+#### Problema: "Problemas com Certificados TLS"
+
+**Sintomas**: Pods não iniciam ou falham na configuração TLS.
+
+**Soluções**:
+
+1. **Verificar se o CA foi criado**:
+   ```bash
+   # Verificar se o CA foi criado
+   microk8s kubectl -n redis get secret redis-ca-key-pair
+   
+   # Verificar status do certificado
+   microk8s kubectl -n redis get certificate redis-server-cert
+   microk8s kubectl -n redis describe certificate redis-server-cert
+   
+   # Verificar se o secret TLS foi criado
+   microk8s kubectl -n redis get secret redis-tls-secret
+   ```
+
+2. **Se o job do CA falhou, deletar e recriar**:
+   ```bash
+   microk8s kubectl -n redis delete job redis-ca-generator
+   microk8s kubectl apply -f 02-tls-certificates.yaml
+   ```
 
 #### Problema: "Os pods não estão iniciando"
 
@@ -563,7 +628,13 @@ microk8s kubectl -n redis get poddisruptionbudget
    # Deve mostrar: microk8s-hostpath
    ```
 
-3. **Se o storage não existir**:
+3. **Verificar se todos os secrets existem**:
+   ```bash
+   # Verificar se todos os secrets necessários foram criados
+   microk8s kubectl -n redis get secrets
+   ```
+
+4. **Se o storage não existir**:
    ```bash
    # Habilitar o addon de storage
    microk8s enable storage
@@ -589,8 +660,11 @@ microk8s kubectl -n redis get poddisruptionbudget
 
 3. **Testar a conectividade interna**:
    ```bash
-   # Testar conexão direta
-   microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli -a "SuaSenha" ping
+   # Testar conexão TLS (porta 6380)
+   microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli --tls --cert /tls/tls.crt --key /tls/tls.key --cacert /tls/ca.crt -h localhost -p 6380 -a "$(microk8s kubectl -n redis get secret redis-auth -o jsonpath='{.data.REDIS_PASSWORD}' | base64 -d)" ping
+   
+   # Testar conexão sem TLS (porta 6379)
+   microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli -h localhost -p 6379 -a "$(microk8s kubectl -n redis get secret redis-auth -o jsonpath='{.data.REDIS_PASSWORD}' | base64 -d)" ping
    # Deve retornar: PONG
    ```
 
