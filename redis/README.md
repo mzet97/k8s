@@ -18,7 +18,29 @@ Este projeto implementa uma solução completa de Redis Master-Replica para Kube
 - cert-manager instalado
 - kubectl configurado
 
-### Comandos de Instalação
+### 🤖 Scripts de Automação (Recomendado)
+
+Para facilitar a instalação e remoção, foram criados scripts automatizados:
+
+```bash
+# Instalação automática
+./install-redis.sh
+
+# Remoção automática
+./remove-redis.sh
+```
+
+**Características dos scripts:**
+- ✅ **Verificação automática** de pré-requisitos (MicroK8s)
+- ✅ **Ordem correta** de aplicação dos arquivos YAML
+- ✅ **Aguarda certificados** TLS serem gerados
+- ✅ **Aguarda pods** ficarem prontos
+- ✅ **Configuração automática** de DNS com IP do nó
+- ✅ **Verificação pós-instalação** com comandos de teste
+- ✅ **Confirmação de segurança** antes da remoção
+- ✅ **Limpeza completa** de recursos
+
+### Comandos de Instalação Manual
 
 ```bash
 # 1. Criar namespace e configurações básicas
@@ -70,7 +92,22 @@ microk8s kubectl -n redis logs redis-master-0
 
 ## 🗑️ Comandos de Remoção
 
-### Remoção Completa
+### 🤖 Remoção Automática (Recomendado)
+
+```bash
+# Remoção automática com confirmação
+./remove-redis.sh
+```
+
+**Características dos scripts de remoção:**
+- ✅ **Verificação de pré-requisitos** (MicroK8s e namespace)
+- ✅ **Confirmação de segurança** antes da remoção
+- ✅ **Ordem reversa** de remoção (segura)
+- ✅ **Verificação de recursos** restantes
+- ✅ **Opção de limpeza completa** do namespace
+- ✅ **Instruções pós-remoção** (DNS e PVs)
+
+### Remoção Manual Completa
 
 ```bash
 # Remover todos os recursos (ordem reversa)
@@ -129,16 +166,7 @@ echo "$NODE_IP redis.home.arpa" | sudo tee -a /etc/hosts
 echo "$NODE_IP redis-proxy.home.arpa" | sudo tee -a /etc/hosts
 ```
 
-#### Windows (executar como Administrador)
-```powershell
-# Obter IP do nó
-$NODE_IP = (microk8s kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
-Write-Host "IP do nó: $NODE_IP"
 
-# Adicionar ao arquivo hosts
-Add-Content C:\Windows\System32\drivers\etc\hosts "$NODE_IP redis.home.arpa"
-Add-Content C:\Windows\System32\drivers\etc\hosts "$NODE_IP redis-proxy.home.arpa"
-```
 
 ### Testes Locais (mesma máquina do Kubernetes)
 
@@ -193,12 +221,7 @@ echo "192.168.0.52 redis.home.arpa" | sudo tee -a /etc/hosts
 echo "192.168.0.52 redis-proxy.home.arpa" | sudo tee -a /etc/hosts
 ```
 
-**Windows:**
-```powershell
-# Executar como Administrador
-Add-Content C:\Windows\System32\drivers\etc\hosts "192.168.0.52 redis.home.arpa"
-Add-Content C:\Windows\System32\drivers\etc\hosts "192.168.0.52 redis-proxy.home.arpa"
-```
+
 
 #### Instalação do Redis CLI
 
@@ -220,14 +243,7 @@ sudo dnf install redis
 brew install redis
 ```
 
-**Windows:**
-```powershell
-# Via Chocolatey
-choco install redis-64
 
-# Via Scoop
-scoop install redis
-```
 
 #### Testes de Conectividade Externa
 
@@ -348,8 +364,7 @@ nslookup redis.home.arpa
 ping redis.home.arpa
 
 # Verificar arquivo hosts
-cat /etc/hosts | grep redis  # Linux/Mac
-type C:\Windows\System32\drivers\etc\hosts | findstr redis  # Windows
+cat /etc/hosts | grep redis
 ```
 
 #### Erro de autenticação
@@ -359,6 +374,44 @@ microk8s kubectl -n redis get secret redis-auth -o jsonpath='{.data.REDIS_PASSWO
 
 # Testar sem senha (se configurado)
 redis-cli -h redis.home.arpa -p 30379 ping
+```
+
+### Problemas com Scripts de Automação
+
+#### Script não executa (Linux/Mac)
+```bash
+# Verificar permissões
+ls -la install-redis.sh remove-redis.sh
+
+# Dar permissão de execução
+chmod +x install-redis.sh remove-redis.sh
+
+# Executar com bash explicitamente
+bash install-redis.sh
+```
+
+#### MicroK8s não encontrado
+```bash
+# Verificar se MicroK8s está instalado
+which microk8s
+
+# Verificar se está no PATH
+echo $PATH
+
+# Adicionar ao PATH temporariamente
+export PATH=$PATH:/snap/bin  # Linux (se instalado via snap)
+```
+
+#### Timeout aguardando recursos
+```bash
+# Verificar status dos pods manualmente
+microk8s kubectl -n redis get pods -w
+
+# Verificar eventos do namespace
+microk8s kubectl -n redis get events --sort-by='.lastTimestamp'
+
+# Verificar logs de pods com problemas
+microk8s kubectl -n redis logs <pod-name>
 ```
 
 ### Comandos de Diagnóstico
@@ -414,9 +467,6 @@ ss -tlnp | grep -E ":(30379|30380|30404)"
 # Exemplo para iptables (Linux)
 sudo iptables -A INPUT -p tcp --dport 30379 -s 192.168.1.0/24 -j ACCEPT
 sudo iptables -A INPUT -p tcp --dport 30379 -j DROP
-
-# Exemplo para Windows Firewall
-netsh advfirewall firewall add rule name="Redis Access" dir=in action=allow protocol=TCP localport=30379
 ```
 
 ## 📚 Referência de Arquivos
@@ -434,6 +484,19 @@ netsh advfirewall firewall add rule name="Redis Access" dir=in action=allow prot
 - `50-backup-cronjob.yaml` - Backup automático
 - `60-monitoring.yaml` - Métricas Prometheus
 - `70-high-availability.yaml` - Alta disponibilidade
+
+### Scripts de Automação
+- `install-redis.sh` - Script de instalação automática
+- `remove-redis.sh` - Script de remoção automática
+
+**Funcionalidades dos scripts:**
+- ✅ Verificação automática de pré-requisitos
+- ✅ Aplicação na ordem correta dos arquivos YAML
+- ✅ Aguarda certificados TLS e pods ficarem prontos
+- ✅ Configuração automática de DNS com IP do nó Kubernetes
+- ✅ Verificação pós-instalação com comandos de teste
+- ✅ Remoção segura com confirmação do usuário
+- ✅ Instruções de limpeza pós-remoção
 
 ---
 
