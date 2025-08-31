@@ -509,48 +509,6 @@ const client = redis.createClient({
 });
 ```
 
-#### Java (usando Jedis com TLS)
-```java
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisClientConfig;
-import redis.clients.jedis.DefaultJedisClientConfig;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManagerFactory;
-import java.security.KeyStore;
-
-public class RedisExample {
-    public static void main(String[] args) {
-        try {
-            // Configurar TLS
-            JedisClientConfig config = DefaultJedisClientConfig.builder()
-                .password("MinhaSenh@Forte123!")
-                .ssl(true)
-                .build();
-            
-            Jedis jedis = new Jedis("redis-client.redis.svc.cluster.local", 6380, config);
-            
-            jedis.set("minha_chave", "meu_valor");
-            String valor = jedis.get("minha_chave");
-            System.out.println(valor); // Retorna: meu_valor
-            
-            jedis.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-}
-```
-
-**Para desenvolvimento/teste** (menos seguro):
-```java
-// APENAS para desenvolvimento - sem verificação de certificado
-JedisClientConfig config = DefaultJedisClientConfig.builder()
-    .password("MinhaSenh@Forte123!")
-    .ssl(true)
-    .hostnameVerifier((hostname, session) -> true)  // Ignora verificação
-    .build();
-```
-
 ### 🚀 Para Desenvolvedores Avançados: Conexão com Réplicas
 
 **O que isso oferece**: Melhor performance distribuindo leituras entre as réplicas.
