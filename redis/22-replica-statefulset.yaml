@@ -33,9 +33,6 @@ spec:
                   operator: In
                   values: ["redis-replica"]
               topologyKey: kubernetes.io/hostname
-        # Evitar colocar réplicas no mesmo nó do master
-        podAntiAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
           - weight: 50
             podAffinityTerm:
               labelSelector:

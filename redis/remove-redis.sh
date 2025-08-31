@@ -6,6 +6,12 @@
 
 set -e  # Parar execução em caso de erro
 
+# Flag opcional --force para remover sem confirmação
+FORCE=false
+if [[ "$1" == "--force" ]]; then
+    FORCE=true
+fi
+
 echo "🗑️ Iniciando remoção do Redis Master-Replica no Kubernetes..."
 echo ""
 
@@ -30,11 +36,15 @@ microk8s kubectl -n redis get all
 echo ""
 
 # Confirmar remoção
-read -p "⚠️ Tem certeza que deseja remover TODOS os recursos do Redis? (y/N): " -n 1 -r
-echo
-if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    echo "❌ Remoção cancelada pelo usuário."
-    exit 0
+if [[ "$FORCE" != true ]]; then
+  read -p "⚠️ Tem certeza que deseja remover TODOS os recursos do Redis? (y/N): " -n 1 -r
+  echo
+  if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+      echo "❌ Remoção cancelada pelo usuário."
+      exit 0
+  fi
+else
+  echo "⚙️ Remoção forçada (--force) habilitada, pulando confirmação."
 fi
 
 echo "🚀 Iniciando remoção dos recursos (ordem reversa)..."
@@ -173,6 +183,22 @@ if microk8s kubectl get -f 01-secret.yaml &> /dev/null; then
 else
     echo "⚠️ Arquivo 01-secret.yaml não encontrado ou já removido"
 fi
+
+# Remover secrets gerados por Jobs (podem ficar órfãos)
+echo "1️⃣2️⃣.1 Removendo secrets gerados por Jobs (se existirem)..."
+microk8s kubectl -n redis delete secret redis-proxy-tls --ignore-not-found
+microk8s kubectl -n redis delete secret redis-ca-key-pair --ignore-not-found
+
+# Remover recursos opcionais aplicados manualmente
+echo "🧹 Removendo recursos opcionais aplicados manualmente (se existirem)..."
+for f in 40-external-access.yaml 41-external-access-master-replica.yaml 20-statefulset.yaml 30-bootstrap-job.yaml; do
+  if microk8s kubectl get -f "$f" &> /dev/null; then
+      microk8s kubectl delete -f "$f"
+      echo "✅ $f removido"
+  else
+      echo "⚠️ $f não encontrado ou já removido"
+  fi
+done
 echo ""
 
 # Verificar se ainda há recursos no namespace
@@ -190,6 +216,12 @@ if [ "$REMAINING" -gt 0 ]; then
         echo "✅ Namespace redis removido completamente"
     else
         echo "⚠️ Namespace mantido com recursos restantes"
+        read -p "🧹 Deseja remover os PVCs do namespace 'redis'? (y/N): " -n 1 -r REPLY2
+        echo
+        if [[ $REPLY2 =~ ^[Yy]$ ]]; then
+            microk8s kubectl -n redis delete pvc --all
+            echo "✅ PVCs removidos"
+        fi
     fi
 else
     echo "1️⃣3️⃣ Removendo namespace..."

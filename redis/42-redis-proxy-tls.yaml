@@ -37,6 +37,15 @@ data:
         bind *:6380 ssl crt /etc/ssl/certs/redis-proxy.pem
         default_backend redis_backend
 
+    # Endpoint de estatísticas para liveness/monitoramento
+    listen stats
+        bind *:8404
+        mode http
+        stats enable
+        stats uri /stats
+        stats refresh 10s
+        stats auth admin:admin123
+
     # Backend conectando ao Redis Master com TLS
     backend redis_backend
         balance roundrobin
@@ -79,6 +88,13 @@ spec:
         - /bin/sh
         - -c
         - |
+          set -e
+          apk add --no-cache curl ca-certificates
+          update-ca-certificates
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          mv kubectl /usr/local/bin/
+          
           # Gerar chave privada
           openssl genrsa -out /tmp/tls.key 2048
           
@@ -178,8 +194,13 @@ spec:
           httpGet:
             path: /stats
             port: 8404
+            httpHeaders:
+            - name: Authorization
+              value: "Basic YWRtaW46YWRtaW4xMjM="
           initialDelaySeconds: 30
           periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 6
         readinessProbe:
           tcpSocket:
             port: 6379

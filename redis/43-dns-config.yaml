@@ -11,11 +11,13 @@ data:
   # Entradas para /etc/hosts
   hosts: |
     # Redis Kubernetes Cluster
-    # IP do nó Kubernetes: 192.168.0.52
-    192.168.0.52 redis.home.arpa
-    192.168.0.52 redis-proxy.home.arpa
-    192.168.0.52 redis-master.home.arpa
-    192.168.0.52 redis-replica.home.arpa
+    # Use os scripts setup-dns.sh/ps1 para detectar automaticamente o IP do nó
+    # e popular o /etc/hosts do seu ambiente cliente.
+    # Exemplo (COMENTADO):
+    # <NODE_IP> redis.home.arpa
+    # <NODE_IP> redis-proxy.home.arpa
+    # <NODE_IP> redis-master.home.arpa
+    # <NODE_IP> redis-replica.home.arpa
 
   # Script para configurar DNS automaticamente
   setup-dns.sh: |
@@ -338,8 +340,9 @@ data:
         environment:
           - REDIS_URL=redis://redis.home.arpa:30379
           - REDIS_PASSWORD=Admin@123
+        # Substitua REPLACE_WITH_NODE_IP pelo IP do nó do cluster acessível ao container
         extra_hosts:
-          - "redis.home.arpa:192.168.0.52"
+          - "redis.home.arpa:REPLACE_WITH_NODE_IP"
     ```
     
     ## Ferramentas de Monitoramento
