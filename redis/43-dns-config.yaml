@@ -11,17 +11,11 @@ data:
   # Entradas para /etc/hosts
   hosts: |
     # Redis Kubernetes Cluster
-    # Substitua <NODE_IP> pelo IP real do seu nó
-    <NODE_IP> redis.local
-    <NODE_IP> redis-proxy.local
-    <NODE_IP> redis-master.local
-    <NODE_IP> redis-replica.local
-    
-    # Exemplos com domínio corporativo
-    <NODE_IP> redis.empresa.com
-    <NODE_IP> redis-proxy.empresa.com
-    <NODE_IP> redis-master.empresa.com
-    <NODE_IP> redis-replica.empresa.com
+    # IP do nó Kubernetes: 192.168.0.52
+    192.168.0.52 redis.home.arpa
+    192.168.0.52 redis-proxy.home.arpa
+    192.168.0.52 redis-master.home.arpa
+    192.168.0.52 redis-replica.home.arpa
 
   # Script para configurar DNS automaticamente
   setup-dns.sh: |
@@ -46,15 +40,15 @@ data:
     # Adicionar novas entradas
     echo "" | sudo tee -a /etc/hosts
     echo "# Redis Kubernetes" | sudo tee -a /etc/hosts
-    echo "$NODE_IP redis.local" | sudo tee -a /etc/hosts
-    echo "$NODE_IP redis-proxy.local" | sudo tee -a /etc/hosts
-    echo "$NODE_IP redis-master.local" | sudo tee -a /etc/hosts
-    echo "$NODE_IP redis-replica.local" | sudo tee -a /etc/hosts
+    echo "$NODE_IP redis.home.arpa" | sudo tee -a /etc/hosts
+    echo "$NODE_IP redis-proxy.home.arpa" | sudo tee -a /etc/hosts
+    echo "$NODE_IP redis-master.home.arpa" | sudo tee -a /etc/hosts
+    echo "$NODE_IP redis-replica.home.arpa" | sudo tee -a /etc/hosts
     echo "# End Redis Kubernetes" | sudo tee -a /etc/hosts
     
     echo "DNS configurado com sucesso!"
     echo "Teste a conectividade:"
-    echo "  redis-cli -h redis-proxy.local -p 30379 -a Admin@123 ping"
+    echo "  redis-cli -h redis-proxy.home.arpa -p 30379 -a Admin@123 ping"
 
   # Script para Windows (PowerShell)
   setup-dns.ps1: |
@@ -101,10 +95,10 @@ data:
     # Adicionar novas entradas
     $newContent += ""
     $newContent += "# Redis Kubernetes"
-    $newContent += "$NODE_IP redis.local"
-    $newContent += "$NODE_IP redis-proxy.local"
-    $newContent += "$NODE_IP redis-master.local"
-    $newContent += "$NODE_IP redis-replica.local"
+    $newContent += "$NODE_IP redis.home.arpa"
+    $newContent += "$NODE_IP redis-proxy.home.arpa"
+    $newContent += "$NODE_IP redis-master.home.arpa"
+    $newContent += "$NODE_IP redis-replica.home.arpa"
     $newContent += "# End Redis Kubernetes"
     
     # Escrever arquivo atualizado
@@ -112,7 +106,7 @@ data:
     
     Write-Host "DNS configurado com sucesso!"
     Write-Host "Teste a conectividade:"
-    Write-Host "  redis-cli -h redis-proxy.local -p 30379 -a Admin@123 ping"
+    Write-Host "  redis-cli -h redis-proxy.home.arpa -p 30379 -a Admin@123 ping"
 
 ---
 # Opção 2: CoreDNS ConfigMap (para clusters que usam CoreDNS)
@@ -124,23 +118,23 @@ metadata:
 data:
   redis.db: |
     ; Redis DNS Zone
-    $ORIGIN redis.local.
+    $ORIGIN redis.home.arpa.
     $TTL 300
     
-    @       IN  SOA ns1.redis.local. admin.redis.local. (
+    @       IN  SOA ns1.redis.home.arpa. admin.redis.home.arpa. (
                 2024010101  ; serial
                 3600        ; refresh
                 1800        ; retry
                 604800      ; expire
                 300 )       ; minimum
     
-    @       IN  NS  ns1.redis.local.
-    ns1     IN  A   <NODE_IP>
+    @       IN  NS  ns1.redis.home.arpa.
+    ns1     IN  A   192.168.0.52
     
     ; Redis Services
-    redis-proxy     IN  A   <NODE_IP>
-    redis-master    IN  A   <NODE_IP>
-    redis-replica   IN  A   <NODE_IP>
+    redis-proxy     IN  A   192.168.0.52
+    redis-master    IN  A   192.168.0.52
+    redis-replica   IN  A   192.168.0.52
     
     ; Aliases
     redis           IN  CNAME   redis-proxy
@@ -159,17 +153,7 @@ metadata:
     nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
 spec:
   rules:
-  - host: redis-stats.local
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: redis-proxy-service
-            port:
-              number: 8404
-  - host: redis-stats.empresa.com
+  - host: redis-stats.home.arpa
     http:
       paths:
       - path: /
@@ -239,16 +223,16 @@ data:
     NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
     
     # Adicionar ao /etc/hosts
-    echo "$NODE_IP redis.local" | sudo tee -a /etc/hosts
-    echo "$NODE_IP redis-proxy.local" | sudo tee -a /etc/hosts
+    echo "$NODE_IP redis.home.arpa" | sudo tee -a /etc/hosts
+    echo "$NODE_IP redis-proxy.home.arpa" | sudo tee -a /etc/hosts
     ```
     
     #### Windows:
     ```powershell
     # Executar como Administrador
     $NODE_IP = kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}'
-    Add-Content C:\Windows\System32\drivers\etc\hosts "$NODE_IP redis.local"
-    Add-Content C:\Windows\System32\drivers\etc\hosts "$NODE_IP redis-proxy.local"
+    Add-Content C:\Windows\System32\drivers\etc\hosts "$NODE_IP redis.home.arpa"
+    Add-Content C:\Windows\System32\drivers\etc\hosts "$NODE_IP redis-proxy.home.arpa"
     ```
     
     ### 2. Script Automatizado
@@ -272,33 +256,33 @@ data:
     
     ```bash
     # Testar resolução DNS
-    nslookup redis.local
-    ping redis.local
+    nslookup redis.home.arpa
+    ping redis.home.arpa
     
     # Testar conexão Redis
-    redis-cli -h redis.local -p 30379 -a Admin@123 ping
-    redis-cli -h redis-proxy.local -p 30379 -a Admin@123 ping
+    redis-cli -h redis.home.arpa -p 30379 -a Admin@123 ping
+    redis-cli -h redis-proxy.home.arpa -p 30379 -a Admin@123 ping
     ```
     
     ### 4. URLs de Acesso
     
-    - **Redis via Proxy**: `redis://redis.local:30379`
-    - **Redis com TLS**: `rediss://redis.local:30380`
-    - **HAProxy Stats**: `http://redis.local:30404/stats`
+    - **Redis via Proxy**: `redis://redis.home.arpa:30379`
+    - **Redis com TLS**: `rediss://redis.home.arpa:30380`
+    - **HAProxy Stats**: `http://redis.home.arpa:30404/stats`
     
     ### 5. Configuração para Aplicações
     
     #### Python:
     ```python
     import redis
-    r = redis.Redis(host='redis.local', port=30379, password='Admin@123')
+    r = redis.Redis(host='redis.home.arpa', port=30379, password='Admin@123')
     ```
     
     #### Node.js:
     ```javascript
     const redis = require('redis');
     const client = redis.createClient({
-        host: 'redis.local',
+        host: 'redis.home.arpa',
         port: 30379,
         password: 'Admin@123'
     });
@@ -306,7 +290,7 @@ data:
     
     #### Java:
     ```java
-    JedisPool pool = new JedisPool("redis.local", 30379, "Admin@123");
+    JedisPool pool = new JedisPool("redis.home.arpa", 30379, "Admin@123");
     ```
 
   usage-examples.md: |
@@ -318,7 +302,7 @@ data:
     ```yaml
     spring:
       redis:
-        host: redis.local
+        host: redis.home.arpa
         port: 30379
         password: Admin@123
         timeout: 2000ms
@@ -329,7 +313,7 @@ data:
     CACHES = {
         'default': {
             'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': 'redis://redis.local:30379/1',
+            'LOCATION': 'redis://redis.home.arpa:30379/1',
             'OPTIONS': {
                 'CLIENT_CLASS': 'django_redis.client.DefaultClient',
                 'PASSWORD': 'Admin@123',
@@ -340,7 +324,7 @@ data:
     
     ### Laravel (.env)
     ```env
-    REDIS_HOST=redis.local
+    REDIS_HOST=redis.home.arpa
     REDIS_PASSWORD=Admin@123
     REDIS_PORT=30379
     ```
@@ -352,10 +336,10 @@ data:
       app:
         image: myapp:latest
         environment:
-          - REDIS_URL=redis://redis.local:30379
+          - REDIS_URL=redis://redis.home.arpa:30379
           - REDIS_PASSWORD=Admin@123
         extra_hosts:
-          - "redis.local:<NODE_IP>"
+          - "redis.home.arpa:192.168.0.52"
     ```
     
     ## Ferramentas de Monitoramento
@@ -366,7 +350,7 @@ data:
     datasources:
       - name: Redis
         type: redis-datasource
-        url: redis://redis.local:30379
+        url: redis://redis.home.arpa:30379
         jsonData:
           password: Admin@123
     ```
@@ -375,7 +359,7 @@ data:
     ```yaml
     - job_name: 'redis'
       static_configs:
-        - targets: ['redis.local:30379']
+        - targets: ['redis.home.arpa:30379']
       params:
         password: ['Admin@123']
     ```
