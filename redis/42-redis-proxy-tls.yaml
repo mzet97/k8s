@@ -50,7 +50,8 @@ data:
     backend redis_backend
         balance roundrobin
         option tcp-check
-        tcp-check connect ssl verify none
+-        tcp-check connect ssl verify none
++        tcp-check connect ssl
         tcp-check send "AUTH Admin@123\r\n"
         tcp-check expect string +OK
         tcp-check send "PING\r\n"
@@ -61,7 +62,8 @@ data:
     backend redis_replica_backend
         balance roundrobin
         option tcp-check
-        tcp-check connect ssl verify none
+-        tcp-check connect ssl verify none
++        tcp-check connect ssl
         tcp-check send "AUTH Admin@123\r\n"
         tcp-check expect string +OK
         tcp-check send "PING\r\n"
