@@ -14,7 +14,7 @@ data:
         log stdout local0 info
         maxconn 4096
         ssl-default-bind-ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384
-        ssl-default-bind-options ssl-min-ver TLSv1.2 no-sslv3
+        ssl-default-bind-options no-sslv3 no-tlsv10 no-tlsv11
         tune.ssl.default-dh-param 2048
 
     defaults
@@ -34,7 +34,7 @@ data:
 
     # Frontend para conexões externas com TLS opcional
     frontend redis_tls_frontend
-        bind *:6380 ssl crt /etc/ssl/certs/redis-proxy.pem
+        bind *:6380 ssl crt /etc/ssl/certs/redis-proxy.pem ssl-min-ver TLSv1.2
         default_backend redis_backend
 
     # Endpoint de estatísticas para liveness/monitoramento
@@ -51,9 +51,9 @@ data:
         balance roundrobin
         option tcp-check
         tcp-check connect ssl verify none
-        tcp-check send AUTH\ Admin@123\r\n
+        tcp-check send "AUTH Admin@123\r\n"
         tcp-check expect string +OK
-        tcp-check send PING\r\n
+        tcp-check send "PING\r\n"
         tcp-check expect string +PONG
         server redis-master redis-master.redis.svc.cluster.local:6380 check ssl verify none
 
@@ -62,9 +62,9 @@ data:
         balance roundrobin
         option tcp-check
         tcp-check connect ssl verify none
-        tcp-check send AUTH\ Admin@123\r\n
+        tcp-check send "AUTH Admin@123\r\n"
         tcp-check expect string +OK
-        tcp-check send PING\r\n
+        tcp-check send "PING\r\n"
         tcp-check expect string +PONG
         server redis-replica-0 redis-replica-0.redis-replica-headless.redis.svc.cluster.local:6380 check ssl verify none
         server redis-replica-1 redis-replica-1.redis-replica-headless.redis.svc.cluster.local:6380 check ssl verify none
