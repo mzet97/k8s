@@ -1,0 +1,48 @@
+# Acesso Externo para Redis Master-Replica Setup
+# Este arquivo expõe o Redis Master para acesso externo via NodePort
+# Porta externa: 30380 (TLS)
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-external-access
+  namespace: redis
+  labels:
+    app: redis-master
+    role: master
+    component: external-access
+spec:
+  type: NodePort
+  selector:
+    app: redis-master
+    role: master
+  ports:
+  - name: redis-tls
+    port: 6380
+    targetPort: 6380
+    nodePort: 30380
+    protocol: TCP
+  # Nota: Porta 6379 não é exposta por motivos de segurança (TLS obrigatório)
+---
+# Opcional: Acesso externo às réplicas para distribuição de leitura
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-replica-external-access
+  namespace: redis
+  labels:
+    app: redis-replica
+    role: replica
+    component: external-access
+spec:
+  type: NodePort
+  selector:
+    app: redis-replica
+    role: replica
+  ports:
+  - name: redis-tls
+    port: 6380
+    targetPort: 6380
+    nodePort: 30381
+    protocol: TCP
+  # Nota: Este serviço faz load balancing entre todas as réplicas
