@@ -1,0 +1,256 @@
+# Proxy HAProxy para Redis com Terminação TLS
+# Este proxy permite acesso externo ao Redis sem necessidade de certificados no cliente
+# O proxy faz a terminação TLS e conecta ao Redis internamente com TLS
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: redis-proxy-config
+  namespace: redis
+data:
+  haproxy.cfg: |
+    global
+        daemon
+        log stdout local0 info
+        maxconn 4096
+        ssl-default-bind-ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384
+        ssl-default-bind-options ssl-min-ver TLSv1.2 no-sslv3
+        tune.ssl.default-dh-param 2048
+
+    defaults
+        mode tcp
+        log global
+        option tcplog
+        option dontlognull
+        retries 3
+        timeout connect 5000ms
+        timeout client 50000ms
+        timeout server 50000ms
+
+    # Frontend para conexões externas (sem TLS)
+    frontend redis_frontend
+        bind *:6379
+        default_backend redis_backend
+
+    # Frontend para conexões externas com TLS opcional
+    frontend redis_tls_frontend
+        bind *:6380 ssl crt /etc/ssl/certs/redis-proxy.pem
+        default_backend redis_backend
+
+    # Backend conectando ao Redis Master com TLS
+    backend redis_backend
+        balance roundrobin
+        option tcp-check
+        tcp-check connect ssl verify none
+        tcp-check send AUTH\ Admin@123\r\n
+        tcp-check expect string +OK
+        tcp-check send PING\r\n
+        tcp-check expect string +PONG
+        server redis-master redis-master.redis.svc.cluster.local:6380 check ssl verify none
+
+    # Backend para réplicas (leitura)
+    backend redis_replica_backend
+        balance roundrobin
+        option tcp-check
+        tcp-check connect ssl verify none
+        tcp-check send AUTH\ Admin@123\r\n
+        tcp-check expect string +OK
+        tcp-check send PING\r\n
+        tcp-check expect string +PONG
+        server redis-replica-0 redis-replica-0.redis-replica-headless.redis.svc.cluster.local:6380 check ssl verify none
+        server redis-replica-1 redis-replica-1.redis-replica-headless.redis.svc.cluster.local:6380 check ssl verify none
+        server redis-replica-2 redis-replica-2.redis-replica-headless.redis.svc.cluster.local:6380 check ssl verify none
+
+---
+# Job para gerar certificado auto-assinado
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: redis-proxy-cert-generator
+  namespace: redis
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+      - name: cert-generator
+        image: alpine/openssl:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          # Gerar chave privada
+          openssl genrsa -out /tmp/tls.key 2048
+          
+          # Gerar certificado auto-assinado
+          openssl req -new -x509 -key /tmp/tls.key -out /tmp/tls.crt -days 365 -subj "/CN=redis-proxy.redis.svc.cluster.local/O=Redis Proxy"
+          
+          # Combinar certificado e chave para HAProxy
+          cat /tmp/tls.crt /tmp/tls.key > /tmp/redis-proxy.pem
+          
+          # Criar secret com os certificados
+          kubectl create secret generic redis-proxy-tls \
+            --from-file=tls.crt=/tmp/tls.crt \
+            --from-file=tls.key=/tmp/tls.key \
+            --from-file=redis-proxy.pem=/tmp/redis-proxy.pem \
+            --namespace=redis --dry-run=client -o yaml | kubectl apply -f -
+        volumeMounts:
+        - name: kubectl-config
+          mountPath: /root/.kube
+      volumes:
+      - name: kubectl-config
+        emptyDir: {}
+      serviceAccountName: redis-proxy-sa
+
+---
+# ServiceAccount para o job de geração de certificados
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: redis-proxy-sa
+  namespace: redis
+
+---
+# ClusterRole para permitir criação de secrets
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: redis
+  name: redis-proxy-role
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["create", "update", "patch", "get"]
+
+---
+# RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: redis-proxy-rolebinding
+  namespace: redis
+subjects:
+- kind: ServiceAccount
+  name: redis-proxy-sa
+  namespace: redis
+roleRef:
+  kind: Role
+  name: redis-proxy-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# Deployment do HAProxy
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-proxy
+  namespace: redis
+  labels:
+    app: redis-proxy
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: redis-proxy
+  template:
+    metadata:
+      labels:
+        app: redis-proxy
+    spec:
+      containers:
+      - name: haproxy
+        image: haproxy:2.8-alpine
+        ports:
+        - containerPort: 6379
+          name: redis
+        - containerPort: 6380
+          name: redis-tls
+        - containerPort: 8404
+          name: stats
+        volumeMounts:
+        - name: haproxy-config
+          mountPath: /usr/local/etc/haproxy/haproxy.cfg
+          subPath: haproxy.cfg
+        - name: tls-certs
+          mountPath: /etc/ssl/certs
+          readOnly: true
+        livenessProbe:
+          httpGet:
+            path: /stats
+            port: 8404
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 6379
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+      volumes:
+      - name: haproxy-config
+        configMap:
+          name: redis-proxy-config
+      - name: tls-certs
+        secret:
+          secretName: redis-proxy-tls
+
+---
+# Service para o proxy
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-proxy-service
+  namespace: redis
+  labels:
+    app: redis-proxy
+spec:
+  type: NodePort
+  ports:
+  - port: 6379
+    targetPort: 6379
+    nodePort: 30379
+    name: redis
+  - port: 6380
+    targetPort: 6380
+    nodePort: 30380
+    name: redis-tls
+  - port: 8404
+    targetPort: 8404
+    nodePort: 30404
+    name: stats
+  selector:
+    app: redis-proxy
+
+---
+# HorizontalPodAutoscaler para o proxy
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: redis-proxy-hpa
+  namespace: redis
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: redis-proxy
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
