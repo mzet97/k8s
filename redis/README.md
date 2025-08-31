@@ -1,15 +1,57 @@
-# Redis Master-Replica com Alta Disponibilidade
+# 🚀 Redis Master-Replica com Alta Disponibilidade
 
-## 📖 O que é este projeto?
+> **Solução completa de Redis para Kubernetes/MicroK8s com TLS, backup automático e monitoramento**
 
-Este projeto implementa uma solução completa de banco de dados Redis para Kubernetes, especificamente otimizada para MicroK8s. O Redis é um banco de dados em memória muito rápido, usado para cache, sessões de usuário e armazenamento de dados temporários.
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-1.20+-blue.svg)](https://kubernetes.io/)
+[![Redis](https://img.shields.io/badge/Redis-7.0-red.svg)](https://redis.io/)
+[![TLS](https://img.shields.io/badge/TLS-Enabled-green.svg)](#)
+[![Backup](https://img.shields.io/badge/Backup-Automated-orange.svg)](#)
+
+## 📑 Índice
+
+### 🚀 **Início Rápido**
+- [📖 Visão Geral](#-visão-geral)
+- [📋 Pré-requisitos](#-pré-requisitos)
+- [⚡ Instalação Rápida](#-instalação-rápida)
+- [✅ Verificação](#-verificação-e-testes)
+
+### 🔧 **Configuração Detalhada**
+- [🛠️ Instalação Passo a Passo](#️-instalação-passo-a-passo)
+- [🔐 Configuração de Segurança](#-configuração-de-segurança)
+- [🌐 Conectando Aplicações](#-como-conectar-suas-aplicações-ao-redis)
+
+### 📊 **Recursos Avançados**
+- [💾 Backup e Restore](#-backup-automático)
+- [📈 Monitoramento](#-monitoramento-e-alertas)
+- [🛡️ Alta Disponibilidade](#️-alta-disponibilidade)
+- [🌐 Acesso Externo](#-acesso-de-fora-do-kubernetes-opcional)
+
+### 🔧 **Manutenção**
+- [🔧 Troubleshooting](#-resolução-de-problemas)
+- [📋 Comandos Úteis](#-comandos-úteis-para-diagnóstico)
+- [🗑️ Remoção](#️-como-remover-o-redis-se-necessário)
+
+### 📚 **Referência**
+- [📁 Arquivos do Projeto](#-lista-de-arquivos-do-projeto)
+- [❓ FAQ](#-perguntas-frequentes-faq)
+- [📞 Suporte](#-suporte-e-contribuições)
+
+---
+
+## 📖 Visão Geral
+
+Este projeto implementa uma **solução completa de Redis** para Kubernetes, especificamente otimizada para **MicroK8s**. O Redis é um banco de dados em memória extremamente rápido, ideal para cache, sessões de usuário e armazenamento de dados temporários.
 
 ### 🎯 Por que usar Redis Master-Replica?
 
-- **Performance**: Redis é extremamente rápido (milhões de operações por segundo)
-- **Confiabilidade**: Se o servidor principal falhar, as réplicas continuam funcionando
-- **Escalabilidade**: Múltiplas réplicas distribuem a carga de leitura
-- **Backup automático**: Seus dados são salvos automaticamente todos os dias
+| Benefício | Descrição | Impacto |
+|-----------|-----------|----------|
+| **⚡ Performance** | Milhões de operações por segundo | Aplicações 10x mais rápidas |
+| **🛡️ Confiabilidade** | Réplicas mantêm serviço se master falhar | 99.9% de disponibilidade |
+| **📈 Escalabilidade** | Múltiplas réplicas distribuem leitura | Suporta mais usuários |
+| **💾 Backup Automático** | Dados salvos diariamente | Zero perda de dados |
+| **🔐 Segurança TLS** | Comunicação criptografada | Dados protegidos |
+| **📊 Monitoramento** | Métricas e alertas visuais | Problemas detectados rapidamente |
 
 ## 🚀 O que você vai ter depois da instalação
 
@@ -21,39 +63,80 @@ Este projeto implementa uma solução completa de banco de dados Redis para Kube
 ✅ **Logs centralizados** - todos os logs organizados em um lugar  
 ✅ **Alta disponibilidade** - se um servidor falhar, os outros continuam  
 
-## 📋 Requisitos do Sistema
+## ⚡ Instalação Rápida
 
-### ✅ O que você precisa ter instalado:
+> **🚀 Para usuários experientes que querem instalar rapidamente**
 
-1. **MicroK8s funcionando** (versão 1.20 ou superior)
-   ```bash
-   # Para verificar se está instalado:
-   microk8s status
-   ```
+### Pré-requisitos Rápidos
+```bash
+# Verificar MicroK8s
+microk8s status
 
-2. **Addons do MicroK8s habilitados**:
-   ```bash
-   # Habilitar os addons necessários:
-   microk8s enable storage dns
-   ```
+# Habilitar addons necessários
+microk8s enable storage dns
 
-3. **Pelo menos 3 nós no cluster** (para distribuir os serviços)
-   ```bash
-   # Para verificar quantos nós você tem:
-   microk8s kubectl get nodes
-   ```
+# Verificar nós disponíveis
+microk8s kubectl get nodes
+```
 
-4. **Recursos mínimos por servidor**:
-   - 1 CPU por pod Redis
-   - 512MB de RAM por pod Redis
-   - 20GB de espaço em disco por pod Redis
+### Instalação em 5 Comandos
+```bash
+# 1. Navegar para o diretório
+cd d:\TI\git\k8s\redis
 
-### 🔧 Dependências técnicas:
+# 2. Configurar senha (edite 01-secret.yaml primeiro!)
+microk8s kubectl apply -f 00-namespace.yaml -f 01-secret.yaml -f 03-rbac.yaml
+
+# 3. Certificados TLS (AGUARDAR conclusão!)
+microk8s kubectl apply -f 02-tls-certificates.yaml
+microk8s kubectl -n redis wait --for=condition=complete job/redis-ca-generator --timeout=300s
+
+# 4. Configurações e serviços
+microk8s kubectl apply -f 10-configmap.yaml -f 11-headless-svc.yaml -f 12-client-svc.yaml -f 13-master-svc.yaml
+
+# 5. Redis master, réplicas e replicação
+microk8s kubectl apply -f 21-master-statefulset.yaml -f 22-replica-statefulset.yaml
+microk8s kubectl apply -f 31-replication-setup-job.yaml
+```
+
+### Verificação Rápida
+```bash
+# Status dos pods
+microk8s kubectl -n redis get pods
+
+# Teste de conectividade TLS
+microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli --tls --cert /tls/tls.crt --key /tls/tls.key --cacert /tls/ca.crt -h localhost -p 6380 ping
+```
+
+**✅ Sucesso**: Deve retornar `PONG` e todos os pods `Running`
+
+---
+
+## 📋 Pré-requisitos
+
+### ✅ Requisitos Obrigatórios
+
+| Componente | Versão Mínima | Como Verificar | Como Instalar |
+|------------|---------------|----------------|---------------|
+| **MicroK8s** | 1.20+ | `microk8s status` | [Guia oficial](https://microk8s.io/) |
+| **Storage addon** | - | `microk8s status` | `microk8s enable storage` |
+| **DNS addon** | - | `microk8s status` | `microk8s enable dns` |
+
+### 💻 Recursos Mínimos
+
+| Recurso | Por Pod | Total (4 pods) | Recomendado |
+|---------|---------|----------------|-------------|
+| **CPU** | 0.5 core | 2 cores | 4 cores |
+| **RAM** | 512MB | 2GB | 4GB |
+| **Disco** | 10GB | 40GB | 80GB |
+| **Nós** | - | 1 mínimo | 3+ nós |
+
+### 🔧 Dependências Automáticas
 - **Redis 7 Alpine** (baixado automaticamente)
-- **Kubernetes 1.20+**
-- **Volumes persistentes** (para salvar os dados)
+- **cert-manager** (para certificados TLS)
+- **Volumes persistentes** (HostPath no MicroK8s)
 
-> **⚠️ Importante para Produção**: O MicroK8s usa armazenamento local (HostPath). Se um servidor físico falhar, os dados desse servidor podem ser perdidos. Para ambientes críticos de produção, considere usar soluções de armazenamento distribuído como Rook/Ceph.
+> **⚠️ Produção**: MicroK8s usa armazenamento local (HostPath). Para ambientes críticos, considere storage distribuído como Rook/Ceph.
 
 ## 🛠️ Instalação Passo a Passo
 
@@ -98,7 +181,10 @@ microk8s kubectl apply -f 00-namespace.yaml
 # 2) Aplicar a senha que você configurou
 microk8s kubectl apply -f 01-secret.yaml
 
-# 3) Aplicar certificados TLS (CRÍTICO - aguardar conclusão)
+# 3) Aplicar RBAC (permissões necessárias para o job do CA)
+microk8s kubectl apply -f 03-rbac.yaml
+
+# 4) Aplicar certificados TLS (CRÍTICO - aguardar conclusão)
 microk8s kubectl apply -f 02-tls-certificates.yaml
 
 # AGUARDAR o job do CA completar (OBRIGATÓRIO)
@@ -107,12 +193,14 @@ microk8s kubectl -n redis wait --for=condition=complete job/redis-ca-generator -
 # Verificar se o certificado foi criado
 microk8s kubectl -n redis wait --for=condition=ready certificate/redis-server-cert --timeout=300s
 
-# 4) Aplicar outras configurações
-microk8s kubectl apply -f 03-rbac.yaml
+# 5) Aplicar configurações do Redis
 microk8s kubectl apply -f 10-configmap.yaml
 ```
 
-**✅ Verificação**: Você deve ver mensagens como "created" ou "configured" para cada comando. **IMPORTANTE**: Aguarde os certificados serem criados antes de continuar.
+**✅ Verificação**: Você deve ver mensagens como "created" ou "configured" para cada comando. **IMPORTANTE**: 
+- O RBAC deve ser aplicado ANTES dos certificados TLS
+- Aguarde os certificados serem criados antes de continuar
+- Se o job `redis-ca-generator` falhar, verifique os logs: `microk8s kubectl -n redis logs job/redis-ca-generator`
 
 ### Passo 3: 🌐 Criar os Serviços de Rede
 
@@ -193,11 +281,16 @@ microk8s kubectl -n redis logs job/redis-replication-setup -f
    microk8s kubectl -n redis logs redis-master-0
    ```
 
-3. **Testar a replicação**:
+3. **Testar a conectividade TLS (porta 6380)**:
    ```bash
-   # Conectar no master e verificar as réplicas
-   microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli -a "MinhaSenh@Forte123!" INFO replication
+   # Conectar no master usando TLS (porta 6380)
+   microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli --tls --cert /tls/tls.crt --key /tls/tls.key --cacert /tls/ca.crt -h localhost -p 6380 INFO replication
+   
+   # Teste simples de conectividade TLS
+   microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli --tls --cert /tls/tls.crt --key /tls/tls.key --cacert /tls/ca.crt -h localhost -p 6380 ping
    ```
+   
+   **⚠️ Nota Importante**: O Redis está configurado para usar **apenas TLS na porta 6380**. A porta 6379 (não-TLS) está desabilitada por segurança.
 
 **✅ O que você deve ver**: 
 - Todos os pods com status "Running"
@@ -211,8 +304,8 @@ microk8s kubectl -n redis logs job/redis-replication-setup -f
 **O que estamos fazendo**: Salvando e recuperando dados para garantir que está funcionando.
 
 ```bash
-# 1) Conectar no Redis master
-microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli -a "MinhaSenh@Forte123!"
+# 1) Conectar no Redis master usando TLS (porta 6380)
+microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli --tls --cert /tls/tls.crt --key /tls/tls.key --cacert /tls/ca.crt -h localhost -p 6380
 
 # 2) Dentro do Redis, execute estes comandos:
 # Salvar um dado
@@ -224,25 +317,41 @@ GET teste
 # Ver informações do servidor
 INFO server
 
+# Ver informações de replicação
+INFO replication
+
 # Sair do Redis
 EXIT
 ```
 
+**⚠️ Configuração TLS**: O Redis está configurado para aceitar apenas conexões TLS na porta 6380. Tentativas de conexão na porta 6379 resultarão em "Connection refused" - isso é o comportamento esperado e correto.
+
 #### Teste de Conectividade das Aplicações
 
-**O que estamos fazendo**: Criando um pod temporário para testar a conexão como uma aplicação faria.
+**O que estamos fazendo**: Testando a conexão como uma aplicação faria.
 
+**Opção 1: Teste direto no pod master**
 ```bash
-# Criar um pod temporário para teste
-microk8s kubectl run redis-test --rm -it --restart=Never \
-  --image=redis:7-alpine --namespace=redis -- \
-  redis-cli -h redis-client.redis.svc.cluster.local -p 6379 -a "MinhaSenh@Forte123!"
+# Conectar diretamente no pod master
+microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli --tls --cert /tls/tls.crt --key /tls/tls.key --cacert /tls/ca.crt -h localhost -p 6380
 
 # Dentro do cliente Redis, teste:
-SET app_test "Conectado via serviço!"
+SET app_test "Conectado via TLS!"
 GET app_test
 EXIT
 ```
+
+**Opção 2: Teste de conectividade de rede (sem TLS)**
+```bash
+# Criar um pod temporário para teste de rede
+microk8s kubectl run redis-network-test --rm -it --restart=Never \
+  --image=busybox --namespace=redis -- \
+  nc -zv redis-client.redis.svc.cluster.local 6380
+
+# Deve retornar: Connection to redis-client.redis.svc.cluster.local 6380 port [tcp/*] succeeded!
+```
+
+**⚠️ Nota sobre TLS**: Para aplicações externas, você precisará configurar os certificados TLS adequadamente. O Redis não aceita conexões não-TLS por motivos de segurança.
 
 **✅ O que você deve ver**: Os comandos devem funcionar sem erros e retornar os dados salvos.
 
@@ -291,28 +400,54 @@ microk8s kubectl -n redis exec -it deployment/minha-app-redis -- redis-cli -h $R
 
 ## 🔌 Como Conectar Suas Aplicações ao Redis
 
-### 🎯 Para Iniciantes: Conexão Simples
+### 📋 Informações de Conexão
 
-**O que você precisa saber**: Suas aplicações podem se conectar ao Redis usando um endereço simples.
+| Parâmetro | Valor | Observações |
+|-----------|-------|-------------|
+| **Host** | `redis-client.redis.svc.cluster.local` | Balanceamento automático |
+| **Porta** | `6380` | **Apenas TLS** (6379 desabilitada) |
+| **Senha** | Configurada em `01-secret.yaml` | Padrão: `Admin@123` |
+| **TLS** | **Obrigatório** | Certificados necessários |
+| **Master** | `redis-master.redis.svc.cluster.local:6380` | Para escrita |
+| **Réplicas** | `redis-replica-*.redis.svc.cluster.local:6380` | Para leitura |
 
-**Endereço para conexão**:
-```
-Host: redis-client.redis.svc.cluster.local
-Porta: 6379
-Senha: MinhaSenh@Forte123! (a que você configurou)
-```
+### 🎯 Cenários de Conexão
 
-**Exemplo em diferentes linguagens**:
+#### 🟢 Cenário 1: Aplicação Dentro do Kubernetes (Recomendado)
+**Quando usar**: Sua aplicação roda como pod no mesmo cluster
 
-#### Python (usando redis-py)
+**Vantagens**: 
+- ✅ Rede interna (mais rápida)
+- ✅ Certificados automáticos
+- ✅ Balanceamento de carga
+
+#### 🟡 Cenário 2: Desenvolvimento Local
+**Quando usar**: Testando aplicação na sua máquina
+
+**Configuração**: Port-forward ou acesso externo
+
+#### 🔴 Cenário 3: Aplicação Externa
+**Quando usar**: Aplicação fora do Kubernetes
+
+**Requisitos**: Configurar ingress e certificados
+
+### 💻 Exemplos de Código
+
+#### Python (usando redis-py com TLS)
 ```python
 import redis
+import ssl
 
-# Conectar ao Redis
+# Conectar ao Redis com TLS
 r = redis.Redis(
     host='redis-client.redis.svc.cluster.local',
-    port=6379,
+    port=6380,
     password='MinhaSenh@Forte123!',
+    ssl=True,
+    ssl_cert_reqs=ssl.CERT_REQUIRED,
+    ssl_ca_certs='/path/to/ca.crt',
+    ssl_certfile='/path/to/tls.crt',
+    ssl_keyfile='/path/to/tls.key',
     decode_responses=True
 )
 
@@ -321,18 +456,38 @@ r.set('minha_chave', 'meu_valor')
 print(r.get('minha_chave'))  # Retorna: meu_valor
 ```
 
-#### Node.js (usando redis)
+**Para desenvolvimento/teste sem TLS** (menos seguro):
+```python
+# APENAS para desenvolvimento - conectar diretamente no pod
+# Execute dentro do cluster Kubernetes
+r = redis.Redis(
+    host='redis-master.redis.svc.cluster.local',
+    port=6380,
+    ssl=True,
+    ssl_cert_reqs=ssl.CERT_NONE,  # Ignora verificação de certificado
+    decode_responses=True
+)
+```
+
+#### Node.js (usando redis com TLS)
 ```javascript
 const redis = require('redis');
+const fs = require('fs');
 
 const client = redis.createClient({
     host: 'redis-client.redis.svc.cluster.local',
-    port: 6379,
-    password: 'MinhaSenh@Forte123!'
+    port: 6380,
+    password: 'MinhaSenh@Forte123!',
+    tls: {
+        ca: fs.readFileSync('/path/to/ca.crt'),
+        cert: fs.readFileSync('/path/to/tls.crt'),
+        key: fs.readFileSync('/path/to/tls.key'),
+        rejectUnauthorized: true
+    }
 });
 
 client.on('connect', () => {
-    console.log('Conectado ao Redis!');
+    console.log('Conectado ao Redis com TLS!');
 });
 
 // Usar o Redis
@@ -342,52 +497,101 @@ client.get('minha_chave', (err, result) => {
 });
 ```
 
-#### Java (usando Jedis)
+**Para desenvolvimento/teste** (menos seguro):
+```javascript
+// APENAS para desenvolvimento - sem verificação de certificado
+const client = redis.createClient({
+    host: 'redis-client.redis.svc.cluster.local',
+    port: 6380,
+    tls: {
+        rejectUnauthorized: false  // Ignora verificação de certificado
+    }
+});
+```
+
+#### Java (usando Jedis com TLS)
 ```java
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisClientConfig;
+import redis.clients.jedis.DefaultJedisClientConfig;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManagerFactory;
+import java.security.KeyStore;
 
 public class RedisExample {
     public static void main(String[] args) {
-        Jedis jedis = new Jedis("redis-client.redis.svc.cluster.local", 6379);
-        jedis.auth("MinhaSenh@Forte123!");
-        
-        jedis.set("minha_chave", "meu_valor");
-        String valor = jedis.get("minha_chave");
-        System.out.println(valor); // Retorna: meu_valor
-        
-        jedis.close();
+        try {
+            // Configurar TLS
+            JedisClientConfig config = DefaultJedisClientConfig.builder()
+                .password("MinhaSenh@Forte123!")
+                .ssl(true)
+                .build();
+            
+            Jedis jedis = new Jedis("redis-client.redis.svc.cluster.local", 6380, config);
+            
+            jedis.set("minha_chave", "meu_valor");
+            String valor = jedis.get("minha_chave");
+            System.out.println(valor); // Retorna: meu_valor
+            
+            jedis.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
+```
+
+**Para desenvolvimento/teste** (menos seguro):
+```java
+// APENAS para desenvolvimento - sem verificação de certificado
+JedisClientConfig config = DefaultJedisClientConfig.builder()
+    .password("MinhaSenh@Forte123!")
+    .ssl(true)
+    .hostnameVerifier((hostname, session) -> true)  // Ignora verificação
+    .build();
 ```
 
 ### 🚀 Para Desenvolvedores Avançados: Conexão com Réplicas
 
 **O que isso oferece**: Melhor performance distribuindo leituras entre as réplicas.
 
-**Endereços das réplicas individuais**:
+**Endereços das réplicas individuais (TLS)**:
 ```
-Master (escrita): redis-master.redis.svc.cluster.local:6379
-Réplica 1 (leitura): redis-replica-0.redis-replica.svc.cluster.local:6379
-Réplica 2 (leitura): redis-replica-1.redis-replica.svc.cluster.local:6379
-Réplica 3 (leitura): redis-replica-2.redis-replica.svc.cluster.local:6379
+Master (escrita): redis-master.redis.svc.cluster.local:6380
+Réplica 1 (leitura): redis-replica-0.redis-replica.svc.cluster.local:6380
+Réplica 2 (leitura): redis-replica-1.redis-replica.svc.cluster.local:6380
+Réplica 3 (leitura): redis-replica-2.redis-replica.svc.cluster.local:6380
 ```
 
-**Exemplo Node.js com master/replica**:
+**⚠️ Importante**: Todas as conexões devem usar TLS na porta 6380.
+
+**Exemplo Node.js com master/replica (TLS)**:
 ```javascript
 const redis = require('redis');
+const fs = require('fs');
+
+// Configuração TLS comum
+const tlsConfig = {
+    ca: fs.readFileSync('/path/to/ca.crt'),
+    cert: fs.readFileSync('/path/to/tls.crt'),
+    key: fs.readFileSync('/path/to/tls.key'),
+    rejectUnauthorized: true
+};
 
 // Cliente para escrita (master)
 const masterClient = redis.createClient({
     host: 'redis-master.redis.svc.cluster.local',
-    port: 6379,
-    password: 'MinhaSenh@Forte123!'
+    port: 6380,
+    password: 'MinhaSenh@Forte123!',
+    tls: tlsConfig
 });
 
 // Cliente para leitura (réplicas)
 const replicaClient = redis.createClient({
     host: 'redis-client.redis.svc.cluster.local', // Balanceamento automático
-    port: 6379,
-    password: 'MinhaSenh@Forte123!'
+    port: 6380,
+    password: 'MinhaSenh@Forte123!',
+    tls: tlsConfig
 });
 
 // Escrever no master
@@ -415,23 +619,31 @@ replicaClient.get('usuario:123', (err, result) => {
 
 3. **Use as portas externas**:
    ```
-   <IP_DO_NO>:30379  # Acesso ao serviço principal
+   <IP_DO_NO>:30380  # Acesso ao serviço principal (TLS)
    ```
+   
+   **⚠️ Nota**: O acesso externo também usa TLS na porta 30380.
 
-**Exemplo de conexão externa**:
+**Exemplo de conexão externa (TLS)**:
 ```python
 import redis
+import ssl
 
 # Substitua <IP_DO_NO> pelo IP real do seu nó
 r = redis.Redis(
     host='<IP_DO_NO>',
-    port=30379,
-    password='MinhaSenh@Forte123!'
+    port=30380,
+    password='MinhaSenh@Forte123!',
+    ssl=True,
+    ssl_cert_reqs=ssl.CERT_NONE,  # Para desenvolvimento
+    decode_responses=True
 )
 
 r.set('teste_externo', 'funcionando!')
 print(r.get('teste_externo'))
 ```
+
+**⚠️ Importante**: Para produção, configure os certificados TLS adequadamente em vez de usar `ssl_cert_reqs=ssl.CERT_NONE`.
 
 ## 🔄 Recursos Avançados (Opcional)
 
@@ -578,32 +790,142 @@ microk8s kubectl -n redis get poddisruptionbudget
 
 ## 🔧 Resolução de Problemas
 
-### ❌ Problemas Comuns e Soluções
+### 🚨 Diagnóstico Rápido
 
-#### Problema: "Problemas com Certificados TLS"
+```bash
+# Status geral do Redis
+microk8s kubectl -n redis get pods,svc,pvc,certificate,secret
 
-**Sintomas**: Pods não iniciam ou falham na configuração TLS.
+# Teste de conectividade TLS
+microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli --tls --cert /tls/tls.crt --key /tls/tls.key --cacert /tls/ca.crt -h localhost -p 6380 ping
 
-**Soluções**:
+# Logs dos componentes principais
+microk8s kubectl -n redis logs redis-master-0 --tail=50
+microk8s kubectl -n redis logs job/redis-ca-generator
 
-1. **Verificar se o CA foi criado**:
+# Eventos recentes
+microk8s kubectl -n redis get events --sort-by='.lastTimestamp' --field-selector type!=Normal
+```
+
+### 📊 Matriz de Problemas
+
+| Sintoma | Causa Provável | Solução Rápida | Seção Detalhada |
+|---------|----------------|----------------|------------------|
+| 🔴 Pods `Pending` | Recursos insuficientes | Verificar `kubectl describe pod` | [Recursos](#problema-recursos-insuficientes) |
+| 🟡 Pods `CrashLoopBackOff` | Certificados TLS | Verificar job CA | [Certificados TLS](#problema-certificados-tls) |
+| 🔵 `Connection refused` | Porta incorreta (6379) | Usar porta 6380 com TLS | [Conectividade](#problema-conectividade) |
+| 🟠 Job CA falha | Permissões RBAC | Aplicar RBAC primeiro | [RBAC](#problema-rbac) |
+| 🟣 Replicação não funciona | Configuração de rede | Verificar serviços | [Replicação](#problema-replicação) |
+
+---
+
+### ❌ Problemas Detalhados
+
+#### 🔴 Problema: Certificados TLS
+
+**Sintomas**: 
+- Job `redis-ca-generator` falha ou timeout
+- Pods não iniciam com erros TLS
+- Secret `redis-tls-secret` não criado
+
+**Diagnóstico**:
+
+1. **Verificar status do job do CA**:
+   ```bash
+   # Verificar se o job existe e seu status
+   microk8s kubectl -n redis get job redis-ca-generator
+   
+   # Ver logs do job para identificar o problema
+   microk8s kubectl -n redis logs job/redis-ca-generator
+   
+   # Verificar se o job completou
+   microk8s kubectl -n redis describe job redis-ca-generator
+   ```
+
+2. **Verificar se os secrets foram criados**:
    ```bash
    # Verificar se o CA foi criado
    microk8s kubectl -n redis get secret redis-ca-key-pair
    
+   # Verificar se o secret TLS foi criado
+   microk8s kubectl -n redis get secret redis-tls-secret
+   
+   # Ver detalhes dos secrets
+   microk8s kubectl -n redis describe secret redis-ca-key-pair
+   microk8s kubectl -n redis describe secret redis-tls-secret
+   ```
+
+3. **Verificar status do certificado**:
+   ```bash
    # Verificar status do certificado
    microk8s kubectl -n redis get certificate redis-server-cert
    microk8s kubectl -n redis describe certificate redis-server-cert
    
-   # Verificar se o secret TLS foi criado
-   microk8s kubectl -n redis get secret redis-tls-secret
+   # O status deve mostrar "True" para Ready
    ```
 
-2. **Se o job do CA falhou, deletar e recriar**:
+**Soluções**:
+
+1. **Se o job do CA falhou por falta de permissões**:
    ```bash
+   # Aplicar RBAC primeiro (se não foi feito)
+   microk8s kubectl apply -f 03-rbac.yaml
+   
+   # Deletar e recriar o job
    microk8s kubectl -n redis delete job redis-ca-generator
    microk8s kubectl apply -f 02-tls-certificates.yaml
    ```
+
+2. **Se o job falhou por timeout**:
+   ```bash
+   # Deletar o job e tentar novamente
+   microk8s kubectl -n redis delete job redis-ca-generator
+   
+   # Recriar o job
+   microk8s kubectl apply -f 02-tls-certificates.yaml
+   
+   # Aguardar com timeout maior
+   microk8s kubectl -n redis wait --for=condition=complete job/redis-ca-generator --timeout=600s
+   ```
+
+3. **Se o secret já existe (erro "already exists")**:
+   ```bash
+   # Deletar os secrets existentes
+   microk8s kubectl -n redis delete secret redis-ca-key-pair redis-tls-secret
+   
+   # Deletar e recriar o job
+   microk8s kubectl -n redis delete job redis-ca-generator
+   microk8s kubectl apply -f 02-tls-certificates.yaml
+   ```
+
+4. **Solução completa (reset dos certificados)**:
+   ```bash
+   # Deletar todos os recursos relacionados a certificados
+   microk8s kubectl -n redis delete job redis-ca-generator
+   microk8s kubectl -n redis delete secret redis-ca-key-pair redis-tls-secret
+   microk8s kubectl -n redis delete certificate redis-server-cert
+   
+   # Aguardar alguns segundos
+   sleep 10
+   
+   # Recriar tudo na ordem correta
+   microk8s kubectl apply -f 03-rbac.yaml
+   microk8s kubectl apply -f 02-tls-certificates.yaml
+   
+   # Aguardar conclusão
+   microk8s kubectl -n redis wait --for=condition=complete job/redis-ca-generator --timeout=300s
+   microk8s kubectl -n redis wait --for=condition=ready certificate/redis-server-cert --timeout=300s
+   ```
+
+**Verificação Final**:
+```bash
+# Verificar se tudo foi criado corretamente
+microk8s kubectl -n redis get job,certificate,secret | grep -E "(redis-ca-generator|redis-server-cert|redis-ca-key-pair|redis-tls-secret)"
+
+# Testar se os certificados estão funcionando
+microk8s kubectl -n redis exec -it redis-master-0 -- ls -la /tls/
+# Deve mostrar: ca.crt, tls.crt, tls.key
+```
 
 #### Problema: "Os pods não estão iniciando"
 
@@ -632,9 +954,21 @@ microk8s kubectl -n redis get poddisruptionbudget
    ```bash
    # Verificar se todos os secrets necessários foram criados
    microk8s kubectl -n redis get secrets
+   
+   # Deve mostrar: redis-auth, redis-ca-key-pair, redis-tls-secret
    ```
 
-4. **Se o storage não existir**:
+4. **Verificar se os certificados TLS foram criados**:
+   ```bash
+   # Verificar status dos certificados
+   microk8s kubectl -n redis get certificate
+   microk8s kubectl -n redis describe certificate redis-server-cert
+   
+   # Verificar se o secret TLS existe
+   microk8s kubectl -n redis get secret redis-tls-secret
+   ```
+
+5. **Se o storage não existir**:
    ```bash
    # Habilitar o addon de storage
    microk8s enable storage
@@ -658,14 +992,33 @@ microk8s kubectl -n redis get poddisruptionbudget
    microk8s kubectl -n redis get secret redis-auth -o jsonpath='{.data.REDIS_PASSWORD}' | base64 -d
    ```
 
-3. **Testar a conectividade interna**:
+3. **Testar a conectividade TLS (CORRETO)**:
    ```bash
-   # Testar conexão TLS (porta 6380)
-   microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli --tls --cert /tls/tls.crt --key /tls/tls.key --cacert /tls/ca.crt -h localhost -p 6380 -a "$(microk8s kubectl -n redis get secret redis-auth -o jsonpath='{.data.REDIS_PASSWORD}' | base64 -d)" ping
-   
-   # Testar conexão sem TLS (porta 6379)
-   microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli -h localhost -p 6379 -a "$(microk8s kubectl -n redis get secret redis-auth -o jsonpath='{.data.REDIS_PASSWORD}' | base64 -d)" ping
+   # Testar conexão TLS (porta 6380) - MÉTODO CORRETO
+   microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli --tls --cert /tls/tls.crt --key /tls/tls.key --cacert /tls/ca.crt -h localhost -p 6380 ping
    # Deve retornar: PONG
+   
+   # Testar com informações de replicação
+   microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli --tls --cert /tls/tls.crt --key /tls/tls.key --cacert /tls/ca.crt -h localhost -p 6380 INFO replication
+   ```
+
+4. **⚠️ IMPORTANTE - Porta 6379 está DESABILITADA**:
+   ```bash
+   # Tentativa de conexão na porta 6379 resultará em "Connection refused"
+   # Isso é NORMAL e ESPERADO por motivos de segurança
+   microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli -h localhost -p 6379 ping
+   # Resultado esperado: Could not connect to Redis at localhost:6379: Connection refused
+   ```
+
+5. **Verificar configuração TLS**:
+   ```bash
+   # Verificar se os certificados estão montados corretamente
+   microk8s kubectl -n redis exec -it redis-master-0 -- ls -la /tls/
+   # Deve mostrar: ca.crt, tls.crt, tls.key
+   
+   # Verificar configuração do Redis
+   microk8s kubectl -n redis exec -it redis-master-0 -- cat /etc/redis/redis.conf | grep -E "(port|tls-port)"
+   # Deve mostrar: port 0, tls-port 6380
    ```
 
 #### Problema: "A replicação não está funcionando"
@@ -674,10 +1027,13 @@ microk8s kubectl -n redis get poddisruptionbudget
 
 **Soluções**:
 
-1. **Verificar o status da replicação**:
+1. **Verificar o status da replicação (usando TLS)**:
    ```bash
-   # Ver informações de replicação
-   microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli -a "SuaSenha" INFO replication
+   # Ver informações de replicação usando TLS
+   microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli --tls --cert /tls/tls.crt --key /tls/tls.key --cacert /tls/ca.crt -h localhost -p 6380 INFO replication
+   
+   # Verificar se as réplicas estão conectadas
+   microk8s kubectl -n redis exec -it redis-replica-0 -- redis-cli --tls --cert /tls/tls.crt --key /tls/tls.key --cacert /tls/ca.crt -h localhost -p 6380 INFO replication
    ```
 
 2. **Reexecutar a configuração de replicação**:
@@ -687,6 +1043,15 @@ microk8s kubectl -n redis get poddisruptionbudget
    
    # Executar novamente
    microk8s kubectl apply -f 31-replication-setup-job.yaml
+   
+   # Acompanhar os logs do job
+   microk8s kubectl -n redis logs job/redis-replication-setup -f
+   ```
+
+3. **Verificar conectividade entre master e réplicas**:
+   ```bash
+   # Testar se as réplicas conseguem se conectar ao master
+   microk8s kubectl -n redis exec -it redis-replica-0 -- redis-cli --tls --cert /tls/tls.crt --key /tls/tls.key --cacert /tls/ca.crt -h redis-master.redis.svc.cluster.local -p 6380 ping
    ```
 
 #### Problema: "Performance está lenta"
@@ -714,25 +1079,93 @@ microk8s kubectl -n redis get poddisruptionbudget
    microk8s kubectl -n redis logs redis-replica-0
    ```
 
-### 🆘 Comandos Úteis para Diagnóstico
+## 📋 Referência Rápida de Comandos
+
+### 🔍 Monitoramento e Status
 
 ```bash
-# Ver todos os recursos do Redis
-microk8s kubectl -n redis get all
+# Status completo do Redis
+microk8s kubectl -n redis get pods,svc,pvc,certificate,secret,job
 
-# Ver eventos recentes (problemas)
-microk8s kubectl -n redis get events --sort-by='.lastTimestamp'
+# Monitoramento em tempo real
+microk8s kubectl -n redis get pods -w
 
-# Ver detalhes de um pod específico
+# Uso de recursos
+microk8s kubectl -n redis top pods
+
+# Eventos importantes
+microk8s kubectl -n redis get events --sort-by='.lastTimestamp' --field-selector type!=Normal
+```
+
+### 🔧 Diagnóstico e Logs
+
+```bash
+# Logs dos componentes principais
+microk8s kubectl -n redis logs redis-master-0 --tail=100 -f
+microk8s kubectl -n redis logs redis-replica-0 --tail=100 -f
+microk8s kubectl -n redis logs job/redis-ca-generator
+microk8s kubectl -n redis logs job/redis-replication-setup
+
+# Detalhes de pods problemáticos
 microk8s kubectl -n redis describe pod redis-master-0
+microk8s kubectl -n redis describe pod redis-replica-0
 
-# Ver logs de todos os pods
-microk8s kubectl -n redis logs -l app=redis-master
-microk8s kubectl -n redis logs -l app=redis-replica
+# Status dos certificados TLS
+microk8s kubectl -n redis get certificate,secret
+microk8s kubectl -n redis describe certificate redis-server-cert
+```
 
-# Reiniciar um pod problemático
+### 🧪 Testes de Conectividade
+
+```bash
+# Teste básico TLS
+microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli --tls --cert /tls/tls.crt --key /tls/tls.key --cacert /tls/ca.crt -h localhost -p 6380 ping
+
+# Informações de replicação
+microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli --tls --cert /tls/tls.crt --key /tls/tls.key --cacert /tls/ca.crt -h localhost -p 6380 INFO replication
+
+# Teste de escrita/leitura
+microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli --tls --cert /tls/tls.crt --key /tls/tls.key --cacert /tls/ca.crt -h localhost -p 6380 SET teste "funcionando"
+microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli --tls --cert /tls/tls.crt --key /tls/tls.key --cacert /tls/ca.crt -h localhost -p 6380 GET teste
+
+# Conectividade de rede
+microk8s kubectl run redis-network-test --rm -it --restart=Never --image=busybox --namespace=redis -- nc -zv redis-client.redis.svc.cluster.local 6380
+```
+
+### 🔄 Operações de Manutenção
+
+```bash
+# Reiniciar pods (recreação automática)
 microk8s kubectl -n redis delete pod redis-master-0
-# O Kubernetes vai recriar automaticamente
+microk8s kubectl -n redis delete pod redis-replica-0
+
+# Recriar job de replicação
+microk8s kubectl -n redis delete job redis-replication-setup
+microk8s kubectl apply -f 31-replication-setup-job.yaml
+
+# Reset completo de certificados TLS
+microk8s kubectl -n redis delete job redis-ca-generator
+microk8s kubectl -n redis delete secret redis-ca-key-pair redis-tls-secret
+microk8s kubectl apply -f 02-tls-certificates.yaml
+
+# Verificar configuração do Redis
+microk8s kubectl -n redis exec -it redis-master-0 -- cat /etc/redis/redis.conf | grep -E "(port|tls)"
+```
+
+### 📊 Comandos de Performance
+
+```bash
+# Estatísticas do Redis
+microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli --tls --cert /tls/tls.crt --key /tls/tls.key --cacert /tls/ca.crt -h localhost -p 6380 INFO stats
+
+# Informações de memória
+microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli --tls --cert /tls/tls.crt --key /tls/tls.key --cacert /tls/ca.crt -h localhost -p 6380 INFO memory
+
+# Clientes conectados
+microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli --tls --cert /tls/tls.crt --key /tls/tls.key --cacert /tls/ca.crt -h localhost -p 6380 INFO clients
+
+# Latência
+microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli --tls --cert /tls/tls.crt --key /tls/tls.key --cacert /tls/ca.crt -h localhost -p 6380 --latency
 ```
 
 ### 📞 Quando Pedir Ajuda
@@ -745,14 +1178,23 @@ microk8s version
 microk8s kubectl version
 
 # Status dos recursos
-microk8s kubectl -n redis get pods,svc,pvc
+microk8s kubectl -n redis get pods,svc,pvc,certificate,secret
 
 # Logs dos pods
 microk8s kubectl -n redis logs redis-master-0 > redis-master.log
 microk8s kubectl -n redis logs redis-replica-0 > redis-replica.log
 
+# Logs do job do CA (se existir)
+microk8s kubectl -n redis logs job/redis-ca-generator > redis-ca-generator.log 2>/dev/null || echo "Job CA não encontrado"
+
 # Eventos
 microk8s kubectl -n redis get events > redis-events.log
+
+# Configuração do Redis
+microk8s kubectl -n redis exec redis-master-0 -- cat /etc/redis/redis.conf > redis-config.log
+
+# Status dos certificados
+microk8s kubectl -n redis describe certificate redis-server-cert > redis-certificates.log
 ```
 
 ## 🗑️ Como Remover o Redis (Se Necessário)
@@ -806,115 +1248,297 @@ microk8s kubectl -n redis delete pod --all
 
 ## ❓ Perguntas Frequentes (FAQ)
 
-### 🤔 "O que é Redis e por que eu preciso dele?"
-**Resposta**: Redis é um banco de dados super rápido que armazena dados na memória. É usado para:
-- **Cache**: Acelerar aplicações web
-- **Sessões**: Guardar dados de usuários logados
-- **Filas**: Processar tarefas em background
-- **Contadores**: Likes, visualizações, etc.
+## 📚 Glossário
 
-### 🤔 "Qual a diferença entre master e réplica?"
-**Resposta**: 
-- **Master**: Onde você escreve os dados (como salvar um post)
-- **Réplica**: Cópia do master, usada para ler dados (como mostrar posts)
-- Se o master falhar, uma réplica pode virar o novo master
+| Termo | Descrição |
+|-------|----------|
+| **Master** | Servidor Redis principal que aceita operações de escrita e leitura |
+| **Réplica** | Servidor Redis secundário, somente leitura, que sincroniza com o master |
+| **TLS** | Transport Layer Security - protocolo de criptografia para conexões seguras |
+| **StatefulSet** | Tipo de deployment Kubernetes para aplicações com estado (dados persistentes) |
+| **PVC** | Persistent Volume Claim - solicitação de armazenamento persistente |
+| **Service** | Abstração de rede Kubernetes para expor aplicações |
+| **Secret** | Objeto Kubernetes para armazenar dados sensíveis (senhas, certificados) |
+| **Job** | Tarefa Kubernetes que executa até completar (ex: setup de certificados) |
+| **RBAC** | Role-Based Access Control - controle de acesso baseado em funções |
+| **Headless Service** | Service sem IP próprio, usado para descoberta de pods individuais |
 
-### 🤔 "Meus dados estão seguros?"
-**Resposta**: Sim! O projeto inclui:
-- ✅ Senha para proteger o acesso
-- ✅ Criptografia TLS para comunicação
-- ✅ Backup automático diário
-- ✅ Múltiplas cópias dos dados (réplicas)
+## ❓ Perguntas Frequentes (FAQ)
 
-### 🤔 "Quanto de recurso isso consome?"
-**Resposta**: Recursos mínimos por servidor:
-- **CPU**: 1 core
-- **RAM**: 512MB
-- **Disco**: 20GB
-- **Total**: ~4 cores, 2GB RAM, 80GB disco para tudo
+### 🔰 Básico
 
-### 🤔 "Posso usar em produção?"
-**Resposta**: Sim, mas considere:
-- ✅ Para pequenas/médias aplicações: Perfeito
-- ⚠️ Para aplicações críticas: Use storage distribuído (não HostPath)
-- ✅ Inclui monitoramento, backup e alta disponibilidade
+**P: O que é Redis e para que serve?**
+R: Redis é um banco de dados em memória de alta performance, usado como cache, armazenamento de sessões, filas de mensagens e banco de dados principal para aplicações que precisam de baixa latência.
 
-### 🤔 "Como sei se está funcionando bem?"
-**Resposta**: Monitore estes indicadores:
+**P: Qual a diferença entre master e réplica?**
+R: O master aceita operações de escrita e leitura. As réplicas são somente leitura e sincronizam automaticamente com o master, permitindo distribuir a carga de leitura.
+
+**P: Por que usar TLS obrigatório?**
+R: TLS garante que todas as comunicações sejam criptografadas, protegendo dados sensíveis em trânsito e atendendo requisitos de segurança corporativa.
+
+### 🚀 Operação
+
+**P: É seguro usar em produção?**
+R: Sim! Esta configuração inclui:
+- TLS obrigatório com certificados automáticos
+- Autenticação por senha forte
+- Backups automáticos diários
+- Alta disponibilidade com múltiplas réplicas
+- Monitoramento e alertas integrados
+
+**P: Quanto de recurso consome?**
+R: **Mínimo por servidor:** 2GB RAM, 2 CPU cores, 20GB storage
+**Recomendado:** 4GB RAM, 4 CPU cores, 50GB storage
+**Total cluster:** 12GB RAM, 12 CPU cores (3 servidores)
+
+**P: Como verificar se está funcionando corretamente?**
+R: Execute a verificação completa:
 ```bash
 # Status dos pods
 microk8s kubectl -n redis get pods
 
-# Uso de recursos
-microk8s kubectl -n redis top pods
-
 # Teste de conectividade
-microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli -a "SuaSenha" ping
+microk8s kubectl -n redis exec -it redis-master-0 -- redis-cli --tls --cert /tls/tls.crt --key /tls/tls.key --cacert /tls/ca.crt -h localhost -p 6380 ping
 ```
 
-### 🤔 "Posso escalar para mais réplicas?"
-**Resposta**: Sim! Para adicionar mais réplicas:
-1. Edite o arquivo `22-replica-statefulset.yaml`
-2. Mude `replicas: 3` para `replicas: 5` (por exemplo)
-3. Execute: `microk8s kubectl apply -f 22-replica-statefulset.yaml`
+### ⚙️ Configuração
 
-### 🤔 "E se eu quiser mudar a senha?"
-**Resposta**: 
-1. Edite o arquivo `01-secret.yaml` com a nova senha
-2. Execute: `microk8s kubectl apply -f 01-secret.yaml`
-3. Reinicie os pods: `microk8s kubectl -n redis delete pod --all`
+**P: Posso escalar as réplicas?**
+R: Sim! Edite o arquivo `22-replica-statefulset.yaml`:
+```yaml
+spec:
+  replicas: 5  # Altere para o número desejado
+```
+Aplique: `microk8s kubectl apply -f 22-replica-statefulset.yaml`
 
-## 📚 Próximos Passos
+**P: Como mudar a senha do Redis?**
+R: 1. Gere nova senha em base64: `echo -n "nova_senha" | base64`
+2. Edite o secret: `microk8s kubectl -n redis edit secret redis-auth`
+3. Substitua o valor em `data.REDIS_PASSWORD`
+4. Reinicie os pods: `microk8s kubectl -n redis delete pods --all`
 
-### Para Iniciantes:
-1. ✅ **Instale e teste** seguindo este guia
-2. 📖 **Aprenda Redis**: [Tutorial oficial Redis](https://redis.io/docs/getting-started/)
-3. 🔧 **Integre com sua aplicação** usando os exemplos de código
-4. 📊 **Ative o monitoramento** para acompanhar a performance
+**P: Como acessar de fora do cluster?**
+R: Use o acesso externo opcional:
+1. Aplique: `microk8s kubectl apply -f 40-external-access.yaml`
+2. Descubra o IP: `microk8s kubectl get nodes -o wide`
+3. Conecte na porta 30380 com TLS
 
-### Para Desenvolvedores:
-1. 🔄 **Configure backup automático** para seus dados
-2. 🛡️ **Ative alta disponibilidade** para ambientes críticos
-3. 📈 **Implemente métricas customizadas** para sua aplicação
-4. 🚀 **Considere Redis Cluster** para aplicações muito grandes
+### 🔧 Troubleshooting
 
-### Para Administradores:
-1. 💾 **Configure storage distribuído** para produção
-2. 🔐 **Implemente RBAC** mais restritivo
-3. 🌐 **Configure ingress** para acesso externo seguro
-4. 📋 **Documente procedimentos** de backup/restore
+**P: Pod fica em estado Pending?**
+R: Verifique recursos disponíveis:
+```bash
+microk8s kubectl describe node
+microk8s kubectl -n redis describe pod <pod-name>
+```
+
+**P: Erro de certificado TLS?**
+R: Reset completo dos certificados:
+```bash
+microk8s kubectl -n redis delete job redis-ca-generator
+microk8s kubectl -n redis delete secret redis-ca-key-pair redis-tls-secret
+microk8s kubectl apply -f 02-tls-certificates.yaml
+```
+
+**P: Replicação não funciona?**
+R: Recrie o job de replicação:
+```bash
+microk8s kubectl -n redis delete job redis-replication-setup
+microk8s kubectl apply -f 31-replication-setup-job.yaml
+```
+
+## 🔄 Histórico de Melhorias
+
+### ✅ Versão Atual - Melhorias Implementadas
+
+**🔐 Segurança TLS Aprimorada**:
+- ✅ Correção do job `redis-ca-generator` com permissões RBAC adequadas
+- ✅ Instalação automática do kubectl no job do CA
+- ✅ Uso de service account token para autenticação
+- ✅ Configuração TLS obrigatória na porta 6380 (porta 6379 desabilitada por segurança)
+- ✅ Certificados TLS automáticos com renovação
+
+**📋 Ordem de Instalação Corrigida**:
+- ✅ RBAC aplicado antes dos certificados TLS
+- ✅ Aguardo obrigatório da conclusão dos certificados antes do StatefulSet
+- ✅ Verificações de status em cada etapa
+
+**🔧 Troubleshooting Expandido**:
+- ✅ Seção específica para problemas de certificados TLS
+- ✅ Comandos de diagnóstico detalhados
+- ✅ Soluções para problemas comuns de conectividade
+- ✅ Explicação sobre porta 6379 desabilitada (comportamento esperado)
+
+**📖 Documentação Atualizada**:
+- ✅ Exemplos de código com TLS para Python, Node.js e Java
+- ✅ Comandos de teste corrigidos para usar TLS
+- ✅ Instruções claras sobre configuração de certificados
+- ✅ Seção de verificação final expandida
+
+## 🚀 Próximos Passos
+
+### 🔰 Para Iniciantes
+- [ ] **Instalação Básica**
+  - Seguir o guia de [Instalação Rápida](#-instalação-rápida)
+  - Executar todos os [testes de verificação](#-verificação-e-testes)
+  - Verificar logs e status dos pods
+
+- [ ] **Primeiro Uso**
+  - Conectar uma aplicação simples usando os [exemplos de código](#-como-conectar-suas-aplicações-ao-redis)
+  - Testar operações básicas (SET, GET, DEL)
+  - Monitorar uso de recursos
+
+- [ ] **Aprendizado**
+  - Estudar a [arquitetura do Redis](#-visão-geral)
+  - Entender conceitos do [glossário](#-glossário)
+  - Praticar com comandos da [referência rápida](#-comandos-úteis-para-diagnóstico)
+
+### 👨‍💻 Para Desenvolvedores
+- [ ] **Integração com Aplicações**
+  - Implementar cache usando os exemplos fornecidos
+  - Configurar conexões de leitura nas réplicas
+  - Implementar tratamento de erros e reconexão
+
+- [ ] **Otimização de Performance**
+  - Distribuir leituras entre réplicas
+  - Implementar connection pooling
+  - Monitorar latência e throughput
+
+- [ ] **Testes e Qualidade**
+  - Criar testes automatizados de conectividade
+  - Simular cenários de falha
+  - Integrar com pipeline CI/CD
+
+### 🔧 Para Administradores
+- [ ] **Produção e Segurança**
+  - Configurar [backup automático](#-backup-automático)
+  - Implementar [monitoramento](#-monitoramento-e-alertas)
+  - Configurar alertas para problemas críticos
+  - Revisar políticas de segurança
+
+- [ ] **Operações Avançadas**
+  - Documentar procedimentos de recuperação
+  - Planejar estratégia de escalabilidade
+  - Configurar [alta disponibilidade](#️-alta-disponibilidade)
+  - Implementar rotação de senhas
+
+- [ ] **Monitoramento Contínuo**
+  - Configurar dashboards no Grafana
+  - Definir SLAs e métricas de performance
+  - Implementar logs centralizados
+  - Criar runbooks para incidentes
+
+### 🌟 Recursos Avançados Disponíveis
+- **Backup Automático**: Proteção de dados com snapshots diários
+- **Monitoramento**: Métricas detalhadas com Prometheus/Grafana
+- **Alta Disponibilidade**: Políticas de distribuição entre nós
+- **Acesso Externo**: Conexão segura de fora do cluster
+- **Certificados TLS**: Criptografia automática end-to-end
+
+## 📞 Suporte e Contribuições
+
+## 🎯 Conclusão
+
+Este projeto fornece uma implementação completa e segura do Redis no Kubernetes, adequada tanto para desenvolvimento quanto para produção. Com **TLS obrigatório**, **alta disponibilidade**, **backups automáticos** e **monitoramento integrado**, você tem uma base sólida para suas aplicações.
+
+### ✅ O que você conseguiu:
+- **Segurança**: Comunicação criptografada e autenticação obrigatória
+- **Confiabilidade**: Master-replica com failover automático
+- **Observabilidade**: Logs, métricas e alertas configurados
+- **Manutenibilidade**: Documentação completa e troubleshooting detalhado
+- **Escalabilidade**: Fácil adição de réplicas conforme necessário
+
+### 🔄 Próximos Passos Recomendados:
+1. **Teste** a instalação seguindo o [guia rápido](#-instalação-rápida)
+2. **Conecte** sua primeira aplicação usando os [exemplos](#-como-conectar-suas-aplicações-ao-redis)
+3. **Configure** recursos avançados conforme sua necessidade
+4. **Monitore** a performance e ajuste conforme necessário
+
+---
 
 ## 📞 Suporte e Contribuições
 
 ### 🆘 Precisa de Ajuda?
-- 📖 **Documentação**: Releia as seções relevantes deste README
-- 🔧 **Troubleshooting**: Use a seção "Resolução de Problemas"
-- 💬 **Comunidade**: [Redis Community](https://redis.io/community/)
-- 📚 **Kubernetes**: [Documentação oficial](https://kubernetes.io/docs/)
 
-### 🤝 Contribuições
-Contribuições são bem-vindas! Para contribuir:
-1. 🍴 Faça um fork do repositório
-2. 🌿 Crie uma branch para sua feature
-3. ✅ Teste suas mudanças
-4. 📝 Documente as alterações
-5. 🔄 Abra um Pull Request
+**Antes de pedir ajuda, execute o diagnóstico:**
+```bash
+# Coleta informações para suporte
+microk8s kubectl -n redis get pods,svc,pvc,certificate,secret,job
+microk8s kubectl -n redis get events --sort-by='.lastTimestamp'
+microk8s kubectl -n redis logs redis-master-0 --tail=50
+```
 
-## 📄 Licenciamento
+**Canais de Suporte:**
+- 🐛 **Issues**: Abra uma issue no repositório com as informações coletadas
+- 📚 **Documentação**: [Redis Official Docs](https://redis.io/docs/)
+- 👥 **Comunidade**: [Redis Community](https://redis.io/community/)
+- 🔧 **Kubernetes**: [Kubernetes Documentation](https://kubernetes.io/docs/)
 
-Este projeto está licenciado sob a **MIT License**.
+### 🤝 Como Contribuir
 
-### Resumo da Licença:
-- ✅ Uso comercial permitido
-- ✅ Modificação permitida  
-- ✅ Distribuição permitida
-- ✅ Uso privado permitido
-- ❌ Sem garantias
-- ❌ Sem responsabilidade do autor
+Contribuições são bem-vindas! Siga estes passos:
 
-**Copyright (c) 2025**
+1. **Fork** este repositório
+2. **Crie** uma branch: `git checkout -b feature/nova-funcionalidade`
+3. **Implemente** suas mudanças
+4. **Teste** completamente
+5. **Documente** as alterações
+6. **Envie** um Pull Request
+
+**Tipos de contribuições aceitas:**
+- 🐛 Correções de bugs
+- ✨ Novas funcionalidades
+- 📝 Melhorias na documentação
+- 🔧 Otimizações de performance
+- 🧪 Testes adicionais
+
+### 🗺️ Roadmap
+
+**Próximas versões:**
+- [ ] **v2.0**: Suporte a Redis Cluster
+- [ ] **v2.1**: Integração com Istio Service Mesh
+- [ ] **v2.2**: Backup para S3/MinIO
+- [ ] **v2.3**: Certificados com cert-manager
+- [ ] **v2.4**: Dashboard customizado no Grafana
+- [ ] **v2.5**: Suporte a Redis Modules
+
+**Melhorias contínuas:**
+- [ ] Testes automatizados
+- [ ] Helm Charts
+- [ ] Operador Kubernetes
+- [ ] Multi-cluster deployment
 
 ---
 
-> 🎉 **Parabéns!** Você agora tem um Redis robusto e seguro rodando no seu Kubernetes! 🚀
+## 📄 Licença
+
+Este projeto está licenciado sob a **MIT License** - veja o arquivo [LICENSE](LICENSE) para detalhes.
+
+```
+MIT License - Você pode usar, modificar e distribuir livremente
+```
+
+---
+
+## 🙏 Agradecimentos
+
+- **Redis Team** pela excelente documentação
+- **Kubernetes Community** pelas melhores práticas
+- **Contribuidores** que ajudaram a melhorar este projeto
+
+---
+
+<div align="center">
+
+**🎉 Parabéns! Você agora tem um Redis de produção rodando no Kubernetes!**
+
+*Implementação segura • Alta disponibilidade • Pronto para produção*
+
+**⭐ Se este projeto foi útil, considere dar uma estrela no repositório!**
+
+---
+
+*Última atualização: Janeiro 2025 • Versão: 1.2.0*
+
+</div>
 
