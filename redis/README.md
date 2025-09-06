@@ -1,5 +1,32 @@
 # Redis Master-Replica no Kubernetes
 
+## 🚨 Solução para Erro "Reached the max retries per request limit"
+
+Se você está enfrentando problemas de conexão com o Redis, siga os passos abaixo:
+
+### Passo 1: Instalar cert-manager
+```bash
+# Execute o script de instalação
+chmod +x install-cert-manager.sh
+./install-cert-manager.sh
+```
+
+### Passo 2: Verificar status
+```bash
+# Execute o script de diagnóstico
+chmod +x check-redis-status.sh
+./check-redis-status.sh
+```
+
+### Passo 3: Testar conexão
+```bash
+# Obter IP do node
+NODE_IP=$(microk8s kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+
+# Testar conexão TLS
+redis-cli -h $NODE_IP -p 30380 --tls --insecure -a Admin@123 ping
+```
+
 ## 📋 Visão Geral
 
 Este projeto implementa uma solução completa de Redis Master-Replica para Kubernetes/MicroK8s com:
