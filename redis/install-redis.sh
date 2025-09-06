@@ -76,7 +76,7 @@ echo ""
 # 7. Configurar monitoramento e backup (opcional)
 echo "7️⃣ Configurando monitoramento e backup (opcional)..."
 microk8s kubectl apply -f 50-backup-cronjob.yaml
-microk8s kubectl apply -f 60-monitoring.yaml
+# microk8s kubectl apply -f 60-monitoring.yaml  # Temporariamente desativado
 microk8s kubectl apply -f 70-high-availability.yaml
 echo "✅ Monitoramento e backup configurados"
 echo ""
