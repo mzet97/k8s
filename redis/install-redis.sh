@@ -111,15 +111,21 @@ microk8s kubectl apply -f 31-replication-setup-job.yaml
 echo "✅ Replicação configurada"
 echo ""
 
-# 6. Configurar acesso externo
-echo "6️⃣ Configurando acesso externo..."
+# 6. Instalar metrics-server (necessário para HPA)
+echo "6️⃣ Instalando metrics-server..."
+microk8s kubectl apply -f 80-metrics-server.yaml
+echo "✅ Metrics-server instalado"
+echo ""
+
+# 7. Configurar acesso externo
+echo "7️⃣ Configurando acesso externo..."
 microk8s kubectl apply -f 42-redis-proxy-tls.yaml
 microk8s kubectl apply -f 43-dns-config.yaml
 echo "✅ Acesso externo configurado"
 echo ""
 
-# 7. Configurar monitoramento e backup (opcional)
-echo "7️⃣ Configurando monitoramento e backup (opcional)..."
+# 8. Configurar monitoramento e backup (opcional)
+echo "8️⃣ Configurando monitoramento e backup (opcional)..."
 microk8s kubectl apply -f 50-backup-cronjob.yaml
 # microk8s kubectl apply -f 60-monitoring.yaml  # Temporariamente desativado
 microk8s kubectl apply -f 70-high-availability.yaml

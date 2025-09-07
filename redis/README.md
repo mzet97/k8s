@@ -63,6 +63,47 @@ kubectl get pods -n redis -l app=redis-proxy
 
 **Guia detalhado**: Consulte `manual-fix-redis-proxy.md` para instruções completas.
 
+### Problemas com HPA (HorizontalPodAutoscaler)
+
+**Sintomas**: Eventos de erro como "failed to get cpu utilization" e "no metrics returned from resource metrics API".
+
+**Causas comuns**:
+- Metrics-server não instalado ou não funcionando
+- Deployments sem resource requests definidos
+- Deployment referenciado pelo HPA não existe
+
+**Soluções**:
+
+1. **Instalar metrics-server**:
+   ```bash
+   # Aplicar o manifesto do metrics-server
+   kubectl apply -f 80-metrics-server.yaml
+   
+   # Aguardar ficar pronto
+   kubectl wait --for=condition=ready pod -l k8s-app=metrics-server -n kube-system --timeout=300s
+   
+   # Verificar se está funcionando
+   kubectl top nodes
+   ```
+
+2. **Para MicroK8s** (alternativa):
+   ```bash
+   microk8s enable metrics-server
+   ```
+
+3. **Verificar métricas**:
+   ```bash
+   kubectl top pods -n redis
+   kubectl describe hpa -n redis
+   ```
+
+4. **Reativar HPA do redis-exporter** (após metrics-server funcionar):
+   - Edite o arquivo `70-high-availability.yaml`
+   - Descomente o HPA do `redis-exporter-replica-hpa`
+   - Aplique: `kubectl apply -f 70-high-availability.yaml`
+
+**Nota**: O HPA do `redis-exporter-replica` foi temporariamente desabilitado para evitar eventos de erro.
+
 #### Passo 3: Testar instalação
 ```bash
 # Execute o script de teste
