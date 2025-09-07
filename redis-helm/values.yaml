@@ -6,6 +6,9 @@ global:
   redis:
     password: "redis123"
   storageClass: ""
+  # Permitir imagens não-padrão (necessário para Bitnami charts recentes)
+  security:
+    allowInsecureImages: true
 
 # Configuração de autenticação
 auth:

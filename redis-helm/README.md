@@ -41,6 +41,8 @@ Esta pasta contém a configuração para instalar Redis usando Helm Chart da Bit
 
 3. **Acesso ao cluster MicroK8s** configurado
 
+> **⚠️ Nota sobre Segurança**: Este chart usa `global.security.allowInsecureImages=true` para contornar a nova verificação de segurança do Bitnami (dezembro 2024). Isso é necessário devido à detecção de imagens não-padrão. <mcreference link="https://github.com/bitnami/charts/issues/30850" index="0">0</mcreference>
+
 ### Instalação Rápida
 
 ```bash
@@ -144,6 +146,18 @@ microk8s helm3 upgrade redis-cluster bitnami/redis \
   --namespace redis \
   --values values.yaml
 ```
+
+### Configuração de Segurança
+
+O chart inclui configuração especial para contornar a nova verificação de segurança do Bitnami:
+
+```yaml
+global:
+  security:
+    allowInsecureImages: true
+```
+
+Esta configuração é necessária devido às mudanças de segurança implementadas em dezembro de 2024.
 
 ## 🧪 Testes
 
@@ -288,6 +302,16 @@ microk8s kubectl delete namespace redis
    microk8s status
    microk8s start
    microk8s reset  # último recurso
+   ```
+
+6. **Erro de verificação de segurança Bitnami**:
+   ```bash
+   # Se aparecer erro sobre "Original containers have been substituted"
+   # O chart já está configurado com allowInsecureImages=true
+   # Verifique se o values.yaml contém:
+   global:
+     security:
+       allowInsecureImages: true
    ```
 
 ### Logs de Debug

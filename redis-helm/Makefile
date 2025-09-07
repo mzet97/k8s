@@ -113,6 +113,7 @@ upgrade: ## Atualiza o Redis com novas configurações
 	$(MICROK8S) helm3 upgrade $(RELEASE_NAME) $(CHART_NAME) \
 		--namespace $(NAMESPACE) \
 		--values $(VALUES_FILE) \
+		--set global.security.allowInsecureImages=true \
 		--wait
 	@echo "✅ Atualização concluída!"
 

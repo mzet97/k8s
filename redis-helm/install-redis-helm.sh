@@ -113,6 +113,7 @@ microk8s helm3 upgrade --install redis-cluster bitnami/redis \
   --set tls.certFilename=tls.crt \
   --set tls.certKeyFilename=tls.key \
   --set tls.certCAFilename=ca.crt \
+  --set global.security.allowInsecureImages=true \
   --wait --timeout=600s
 
 echo "✅ Redis instalado com sucesso!"
