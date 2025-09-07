@@ -59,16 +59,34 @@ echo
 
 # Verificar addons
 echo "3. Verificando addons habilitados..."
-ADDONS_STATUS=$(microk8s status --addon 2>/dev/null)
+
+# Tentar obter status dos addons com tratamento de erro
+ADDONS_STATUS=$(microk8s status --addon 2>/dev/null) || {
+    print_warning "Não foi possível obter status dos addons via --addon, tentando método alternativo..."
+    ADDONS_STATUS=$(microk8s status 2>/dev/null | grep -A 20 "addons:" || echo "")
+}
+
+# Se ainda não conseguiu obter status, usar método direto
+if [ -z "$ADDONS_STATUS" ]; then
+    print_warning "Usando verificação direta dos addons..."
+    ADDONS_STATUS=$(microk8s status 2>/dev/null || echo "")
+fi
 
 # Lista de addons esperados
 EXPECTED_ADDONS=("dns" "hostpath-storage" "ingress" "helm3" "cert-manager")
 
 for addon in "${EXPECTED_ADDONS[@]}"; do
-    if echo "$ADDONS_STATUS" | grep -q "$addon: enabled"; then
+    # Verificar se o addon está habilitado usando diferentes padrões
+    if echo "$ADDONS_STATUS" | grep -q "$addon: enabled" || \
+       echo "$ADDONS_STATUS" | grep -q "$addon.*enabled" || \
+       echo "$ADDONS_STATUS" | grep -q "enabled.*$addon"; then
         print_status 0 "Addon $addon está habilitado"
     else
         print_status 1 "Addon $addon não está habilitado"
+        # Mostrar informação adicional para debug
+        if [ ! -z "$ADDONS_STATUS" ]; then
+            print_info "Status encontrado para $addon: $(echo "$ADDONS_STATUS" | grep "$addon" || echo "não encontrado")"
+        fi
     fi
 done
 echo
