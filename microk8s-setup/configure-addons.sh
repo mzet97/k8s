@@ -201,11 +201,25 @@ microk8s kubectl get clusterissuers
 
 # 12. Configurar kubeconfig para acesso externo (opcional)
 log_info "12. Configurando kubeconfig..."
-microk8s config > /tmp/kubeconfig
-chown $(logname):$(logname) /tmp/kubeconfig 2>/dev/null || true
 
-log_info "Kubeconfig salvo em /tmp/kubeconfig"
-log_info "Para usar kubectl externamente: export KUBECONFIG=/tmp/kubeconfig"
+# Criar diretório se não existir
+mkdir -p ~/.kube 2>/dev/null || true
+
+# Salvar kubeconfig no diretório do usuário
+KUBECONFIG_PATH="$HOME/.kube/microk8s-config"
+microk8s config > "$KUBECONFIG_PATH" 2>/dev/null || {
+    # Fallback para diretório atual se $HOME não funcionar
+    KUBECONFIG_PATH="./microk8s-config"
+    log_info "Usando diretório atual como fallback..."
+    microk8s config > "$KUBECONFIG_PATH"
+}
+
+# Ajustar permissões se possível
+chmod 600 "$KUBECONFIG_PATH" 2>/dev/null || true
+chown $(logname):$(logname) "$KUBECONFIG_PATH" 2>/dev/null || true
+
+log_info "Kubeconfig salvo em: $KUBECONFIG_PATH"
+log_info "Para usar kubectl externamente: export KUBECONFIG=$KUBECONFIG_PATH"
 
 # 13. Informações finais
 log_success "=== Configuração dos Addons Concluída ==="
