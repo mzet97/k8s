@@ -79,8 +79,20 @@ echo "Verificando se os pods Redis Master e Replica estão funcionando..."
 
 # Aguardar até 180 segundos pelos pods
 for i in {1..36}; do
-    READY_PODS=$(microk8s kubectl get pods -n redis -l 'app in (redis-master,redis-replica)' --no-headers 2>/dev/null | grep -c "Running" || echo "0")
-    TOTAL_PODS=$(microk8s kubectl get pods -n redis -l 'app in (redis-master,redis-replica)' --no-headers 2>/dev/null | wc -l || echo "0")
+    READY_PODS=$(microk8s kubectl get pods -n redis -l 'app in (redis-master,redis-replica)' --no-headers 2>/dev/null | grep -c "Running" 2>/dev/null || echo "0")
+    TOTAL_PODS=$(microk8s kubectl get pods -n redis -l 'app in (redis-master,redis-replica)' --no-headers 2>/dev/null | wc -l 2>/dev/null || echo "0")
+    
+    # Remover quebras de linha e espaços extras
+    READY_PODS=$(echo "$READY_PODS" | tr -d '\n\r' | xargs)
+    TOTAL_PODS=$(echo "$TOTAL_PODS" | tr -d '\n\r' | xargs)
+    
+    # Verificar se são números válidos
+    if ! [[ "$READY_PODS" =~ ^[0-9]+$ ]]; then
+        READY_PODS=0
+    fi
+    if ! [[ "$TOTAL_PODS" =~ ^[0-9]+$ ]]; then
+        TOTAL_PODS=0
+    fi
     
     if [ "$READY_PODS" -gt 0 ] && [ "$READY_PODS" -eq "$TOTAL_PODS" ]; then
         echo "✅ Todos os pods Redis estão funcionando ($READY_PODS/$TOTAL_PODS)!"

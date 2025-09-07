@@ -1,24 +1,49 @@
 # Redis Master-Replica no Kubernetes
 
-## 🚨 Solução para Erro "Reached the max retries per request limit"
+## 🚨 Solução para Problemas de Instalação
 
-Se você está enfrentando problemas de conexão com o Redis, siga os passos abaixo:
+### Erro "integer expression expected" no Script de Instalação
 
-### Passo 1: Instalar cert-manager
+**Problema:** O script `install-redis.sh` falha com erro de expressão inteira.
+
+**Solução:** Este erro foi corrigido na versão mais recente. Se ainda ocorrer:
+
+```bash
+# Execute o script de correção
+chmod +x fix-installation-issues.sh
+./fix-installation-issues.sh
+```
+
+### Erro "Reached the max retries per request limit"
+
+Se você está enfrentando problemas de conexão com o Redis:
+
+#### Passo 1: Instalar cert-manager
 ```bash
 # Execute o script de instalação
 chmod +x install-cert-manager.sh
 ./install-cert-manager.sh
 ```
 
-### Passo 2: Verificar status
+#### Passo 2: Diagnosticar problemas
 ```bash
-# Execute o script de diagnóstico
+# Execute o script de diagnóstico completo
+chmod +x fix-installation-issues.sh
+./fix-installation-issues.sh
+
+# Ou verificar status específico
 chmod +x check-redis-status.sh
 ./check-redis-status.sh
 ```
 
-### Passo 3: Testar conexão
+#### Passo 3: Testar instalação
+```bash
+# Execute o script de teste
+chmod +x test-installation.sh
+./test-installation.sh
+```
+
+#### Passo 4: Testar conexão manual
 ```bash
 # Obter IP do node
 NODE_IP=$(microk8s kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
@@ -55,6 +80,12 @@ Para facilitar a instalação e remoção, foram criados scripts automatizados:
 
 # Remoção automática
 ./remove-redis.sh
+
+# Diagnóstico e correção de problemas
+./fix-installation-issues.sh
+
+# Teste da instalação
+./test-installation.sh
 ```
 
 **Características dos scripts:**
@@ -63,6 +94,9 @@ Para facilitar a instalação e remoção, foram criados scripts automatizados:
 - ✅ **Aguarda certificados** TLS serem gerados
 - ✅ **Aguarda pods** ficarem prontos
 - ✅ **Configuração automática** de DNS com IP do nó
+- ✅ **Diagnóstico automático** de problemas comuns
+- ✅ **Correção automática** de erros de instalação
+- ✅ **Testes pós-instalação** com validação completa
 - ✅ **Verificação pós-instalação** com comandos de teste
 - ✅ **Confirmação de segurança** antes da remoção
 - ✅ **Limpeza completa** de recursos
@@ -515,6 +549,8 @@ sudo iptables -A INPUT -p tcp --dport 30379 -j DROP
 ### Scripts de Automação
 - `install-redis.sh` - Script de instalação automática
 - `remove-redis.sh` - Script de remoção automática
+- `fix-installation-issues.sh` - Script de diagnóstico e correção de problemas
+- `test-installation.sh` - Script de teste pós-instalação
 
 **Funcionalidades dos scripts:**
 - ✅ Verificação automática de pré-requisitos
@@ -524,6 +560,10 @@ sudo iptables -A INPUT -p tcp --dport 30379 -j DROP
 - ✅ Verificação pós-instalação com comandos de teste
 - ✅ Remoção segura com confirmação do usuário
 - ✅ Instruções de limpeza pós-remoção
+- ✅ Diagnóstico automático de problemas comuns
+- ✅ Correção automática de pods com falhas
+- ✅ Validação completa da instalação
+- ✅ Sugestões de correção para problemas específicos
 
 ---
 
