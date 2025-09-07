@@ -67,6 +67,18 @@ Script de instalação completa automatizada.
 - Fornece relatório final detalhado
 - Inclui verificações de integridade
 
+### 6. `uninstall-microk8s.sh`
+Script de remoção completa do MicroK8s.
+
+**O que faz:**
+- Remove completamente a instalação do MicroK8s
+- Limpa todos os dados persistentes e configurações
+- Para todos os serviços relacionados
+- Remove interfaces de rede e regras de iptables
+- Limpa processos e montagens residuais
+- Fornece verificação final do sistema
+- Inclui confirmação de segurança antes da remoção
+
 ## 📝 Instruções de Uso
 
 ### Instalação Automatizada (Recomendado)
@@ -129,6 +141,26 @@ kubectl get clusterissuer
 # Reset completo do ambiente (em caso de problemas)
 ./reset-environment.sh
 ```
+
+## 🗑️ Remoção Completa
+
+Para remover completamente o MicroK8s do sistema:
+
+```bash
+./uninstall-microk8s.sh
+```
+
+**⚠️ ATENÇÃO:** Este script remove TUDO relacionado ao MicroK8s:
+- Todos os pods, serviços e volumes
+- Configurações e certificados
+- Dados persistentes
+- Interfaces de rede
+- Regras de iptables
+
+**Recomendações:**
+- Faça backup de dados importantes antes da remoção
+- Reinicie o sistema após a remoção para limpeza completa
+- Aguarde pelo menos 2 minutos antes de reinstalar
 
 ## 🔧 Configurações Importantes
 

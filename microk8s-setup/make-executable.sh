@@ -15,6 +15,7 @@ SCRIPTS=(
     "check-environment.sh"
     "reset-environment.sh"
     "setup-complete.sh"
+    "uninstall-microk8s.sh"
     "make-executable.sh"
 )
 
