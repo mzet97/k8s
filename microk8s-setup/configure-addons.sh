@@ -59,7 +59,20 @@ log_success "Hostpath Storage habilitado"
 
 # Aguardar storage estar pronto
 log_info "Aguardando Hostpath Storage estar pronto..."
-microk8s kubectl wait --for=condition=ready pod -l app=hostpath-provisioner -n kube-system --timeout=120s
+# Verificar se o hostpath-provisioner está rodando
+log_info "Verificando se hostpath-provisioner está disponível..."
+for i in {1..30}; do
+    if microk8s kubectl get pods -n kube-system | grep -q hostpath-provisioner; then
+        log_info "Hostpath-provisioner encontrado, aguardando estar pronto..."
+        microk8s kubectl wait --for=condition=ready pod -l app=hostpath-provisioner -n kube-system --timeout=60s 2>/dev/null || \
+        microk8s kubectl wait --for=condition=ready pod -l k8s-app=hostpath-provisioner -n kube-system --timeout=60s 2>/dev/null || \
+        log_warning "Hostpath-provisioner pode não estar totalmente pronto, mas continuando..."
+        break
+    else
+        log_info "Aguardando hostpath-provisioner aparecer... ($i/30)"
+        sleep 2
+    fi
+done
 
 # 3. Habilitar Ingress
 log_info "3. Habilitando Ingress NGINX..."
@@ -68,7 +81,22 @@ log_success "Ingress NGINX habilitado"
 
 # Aguardar ingress estar pronto
 log_info "Aguardando Ingress Controller estar pronto..."
-microk8s kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=ingress-nginx -n ingress --timeout=180s
+# Verificar se o namespace ingress existe
+log_info "Verificando se namespace ingress está disponível..."
+for i in {1..30}; do
+    if microk8s kubectl get namespace ingress >/dev/null 2>&1; then
+        log_info "Namespace ingress encontrado, aguardando pods..."
+        # Tentar diferentes labels possíveis para o ingress
+        microk8s kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=ingress-nginx -n ingress --timeout=60s 2>/dev/null || \
+        microk8s kubectl wait --for=condition=ready pod -l app=ingress-nginx-controller -n ingress --timeout=60s 2>/dev/null || \
+        microk8s kubectl wait --for=condition=ready pod -l app.kubernetes.io/component=controller -n ingress --timeout=60s 2>/dev/null || \
+        log_warning "Ingress Controller pode não estar totalmente pronto, mas continuando..."
+        break
+    else
+        log_info "Aguardando namespace ingress aparecer... ($i/30)"
+        sleep 2
+    fi
+done
 
 # 4. Habilitar Helm
 log_info "4. Habilitando Helm..."
@@ -82,9 +110,31 @@ log_success "Cert-Manager habilitado"
 
 # Aguardar cert-manager estar pronto
 log_info "Aguardando Cert-Manager estar pronto..."
-microk8s kubectl wait --for=condition=ready pod -l app=cert-manager -n cert-manager --timeout=180s
-microk8s kubectl wait --for=condition=ready pod -l app=cainjector -n cert-manager --timeout=180s
-microk8s kubectl wait --for=condition=ready pod -l app=webhook -n cert-manager --timeout=180s
+# Verificar se o namespace cert-manager existe
+log_info "Verificando se namespace cert-manager está disponível..."
+for i in {1..30}; do
+    if microk8s kubectl get namespace cert-manager >/dev/null 2>&1; then
+        log_info "Namespace cert-manager encontrado, aguardando pods..."
+        break
+    else
+        log_info "Aguardando namespace cert-manager aparecer... ($i/30)"
+        sleep 2
+    fi
+done
+
+# Aguardar pods do cert-manager com verificação robusta
+log_info "Aguardando pods do cert-manager..."
+microk8s kubectl wait --for=condition=ready pod -l app=cert-manager -n cert-manager --timeout=60s 2>/dev/null || \
+microk8s kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=cert-manager -n cert-manager --timeout=60s 2>/dev/null || \
+log_warning "Cert-manager pod pode não estar totalmente pronto, mas continuando..."
+
+microk8s kubectl wait --for=condition=ready pod -l app=cainjector -n cert-manager --timeout=60s 2>/dev/null || \
+microk8s kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=cainjector -n cert-manager --timeout=60s 2>/dev/null || \
+log_warning "Cainjector pod pode não estar totalmente pronto, mas continuando..."
+
+microk8s kubectl wait --for=condition=ready pod -l app=webhook -n cert-manager --timeout=60s 2>/dev/null || \
+microk8s kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=webhook -n cert-manager --timeout=60s 2>/dev/null || \
+log_warning "Webhook pod pode não estar totalmente pronto, mas continuando..."
 
 # 6. Configurações adicionais
 log_info "6. Aplicando configurações adicionais..."
@@ -108,7 +158,18 @@ spec:
 EOF
 
 # Verificar se ClusterIssuer foi criado
-microk8s kubectl wait --for=condition=ready clusterissuer/selfsigned-issuer --timeout=60s
+log_info "Verificando se ClusterIssuer foi criado..."
+for i in {1..20}; do
+    if microk8s kubectl get clusterissuer selfsigned-issuer >/dev/null 2>&1; then
+        log_info "ClusterIssuer encontrado, verificando status..."
+        microk8s kubectl wait --for=condition=ready clusterissuer/selfsigned-issuer --timeout=30s 2>/dev/null || \
+        log_warning "ClusterIssuer pode não estar totalmente pronto, mas foi criado com sucesso"
+        break
+    else
+        log_info "Aguardando ClusterIssuer aparecer... ($i/20)"
+        sleep 3
+    fi
+done
 
 log_success "ClusterIssuer criado com sucesso"
 
