@@ -1,0 +1,30 @@
+apiVersion: v2
+name: redis-custom
+description: Redis deployment with custom configuration (1 master + 3 replicas, TLS, DNS)
+type: application
+version: 1.0.0
+appVersion: "7.2.4"
+
+dependencies:
+  - name: redis
+    version: "18.19.4"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: redis.enabled
+
+maintainers:
+  - name: DevOps Team
+    email: devops@company.com
+
+keywords:
+  - redis
+  - database
+  - cache
+  - replication
+  - tls
+
+home: https://redis.io
+sources:
+  - https://github.com/redis/redis
+  - https://github.com/bitnami/charts/tree/main/bitnami/redis
+
+icon: https://bitnami.com/assets/stacks/redis/img/redis-stack-220x234.png
