@@ -36,6 +36,33 @@ chmod +x check-redis-status.sh
 ./check-redis-status.sh
 ```
 
+### Pods redis-proxy em Estado de Erro
+
+Se os pods `redis-proxy` estiverem em estado de **Error** (0/1 Error):
+
+**Causa**: Inconsistência no nome do secret entre o deployment e o job de geração de certificados.
+
+**Solução**:
+```bash
+# Método 1: Script automático (se kubectl disponível)
+./fix-redis-proxy.sh
+
+# Método 2: Correção manual
+# 1. Aplicar manifesto corrigido
+kubectl apply -f 42-redis-proxy-tls.yaml
+
+# 2. Aguardar geração de certificados
+kubectl wait --for=condition=complete job/redis-proxy-cert-generator -n redis --timeout=120s
+
+# 3. Reiniciar deployment
+kubectl rollout restart deployment/redis-proxy -n redis
+
+# 4. Verificar status
+kubectl get pods -n redis -l app=redis-proxy
+```
+
+**Guia detalhado**: Consulte `manual-fix-redis-proxy.md` para instruções completas.
+
 #### Passo 3: Testar instalação
 ```bash
 # Execute o script de teste
