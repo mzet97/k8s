@@ -1,0 +1,202 @@
+root@k8s1:/home/k8s1/k8s/redis# ./check-redis-status.sh
+=== Diagnóstico do Redis no MicroK8s ===
+\n1. Verificando MicroK8s...
+microk8s is running
+high-availability: no
+  datastore master nodes: 127.0.0.1:19001
+  datastore standby nodes: none
+addons:
+  enabled:
+    cert-manager         # (core) Cloud native certificate management
+    community            # (core) The community addons repository
+    dashboard            # (core) The Kubernetes dashboard
+    dns                  # (core) CoreDNS
+    ha-cluster           # (core) Configure high availability on the current node
+    helm                 # (core) Helm - the package manager for Kubernetes
+    helm3                # (core) Helm 3 - the package manager for Kubernetes
+    hostpath-storage     # (core) Storage class; allocates storage from host directory
+    ingress              # (core) Ingress controller for external access
+    metrics-server       # (core) K8s Metrics Server for API access to service metrics
+    storage              # (core) Alias to hostpath-storage add-on, deprecated
+  disabled:
+    argocd               # (community) Argo CD is a declarative continuous deployment for Kubernetes.
+    cilium               # (community) SDN, fast with full network policy
+    cloudnative-pg       # (community) PostgreSQL operator CloudNativePG
+    dashboard-ingress    # (community) Ingress definition for Kubernetes dashboard
+    easyhaproxy          # (community) EasyHAProxy can configure HAProxy automatically based on ingress labels
+    falco                # (community) Cloud-native runtime threat detection tool for Linux and K8s
+    fluentd              # (community) Elasticsearch-Fluentd-Kibana logging and monitoring
+    gopaddle             # (community) Low-Code Kubernetes IDE with AI Co-pilot
+    inaccel              # (community) Simplifying FPGA management in Kubernetes
+    istio                # (community) Core Istio service mesh services
+    jaeger               # (community) Kubernetes Jaeger operator with its simple config
+    kata                 # (community) Kata Containers is a secure runtime with lightweight VMS
+    keda                 # (community) Kubernetes-based Event Driven Autoscaling
+    knative              # (community) Knative Serverless and Event Driven Applications
+    kubearmor            # (community) Cloud-native runtime security enforcement system for k8s
+    kwasm                # (community) WebAssembly support for WasmEdge (Docker Wasm) and Spin (Azure AKS WASI)
+    linkerd              # (community) Linkerd is a service mesh for Kubernetes and other frameworks
+    microcks             # (community) Open source Kubernetes Native tool for API Mocking and Testing
+    multus               # (community) Multus CNI enables attaching multiple network interfaces to pods
+    nfs                  # (community) NFS Server Provisioner
+    ngrok                # (community) ngrok Ingress Controller instantly adds connectivity, load balancing, authentication, and observability to your services
+    openebs              # (community) OpenEBS is the open-source storage solution for Kubernetes
+    openfaas             # (community) OpenFaaS serverless framework
+    osm-edge             # (community) osm-edge is a lightweight SMI compatible service mesh for the edge-computing.
+    parking              # (community) Static webserver to park a domain. Works with EasyHAProxy.
+    portainer            # (community) Portainer UI for your Kubernetes cluster
+    shifu                # (community) Kubernetes native IoT software development framework.
+    sosivio              # (community) Kubernetes Predictive Troubleshooting, Observability, and Resource Optimization
+    sriov-device-plugin  # (community) SR-IOV Network Device Plugin.
+    stunner              # (community) A Kubernetes media gateway for WebRTC
+    traefik              # (community) traefik Ingress controller
+    trivy                # (community) Kubernetes-native security scanner
+    cis-hardening        # (core) Apply CIS K8s hardening
+    gpu                  # (core) Alias to nvidia add-on
+    host-access          # (core) Allow Pods connecting to Host services smoothly
+    kube-ovn             # (core) An advanced network fabric for Kubernetes
+    mayastor             # (core) OpenEBS MayaStor
+    metallb              # (core) Loadbalancer for your Kubernetes cluster
+    minio                # (core) MinIO object storage
+    nvidia               # (core) NVIDIA hardware (GPU and network) support
+    observability        # (core) A lightweight observability stack for logs, traces and metrics
+    prometheus           # (core) Prometheus operator for monitoring and logging
+    rbac                 # (core) Role-Based Access Control for authorisation
+    registry             # (core) Private image registry exposed on localhost:32000
+    rook-ceph            # (core) Distributed Ceph storage using Rook
+\n2. Verificando cert-manager...
+NAME                                      READY   STATUS    RESTARTS   AGE
+cert-manager-cainjector-fd9bf654b-t74t7   1/1     Running   0          24m
+cert-manager-ff4b94468-cll4c              1/1     Running   0          24m
+cert-manager-webhook-7749797f6-gx8sd      1/1     Running   0          24m
+\n3. Verificando namespace redis...
+NAME    STATUS   AGE
+redis   Active   6m54s
+\n4. Status dos pods Redis...
+NAME                                READY   STATUS      RESTARTS   AGE     IP             NODE   NOMINATED NODE   READINESS GATES
+redis-ca-generator-p7cxt            0/1     Completed   0          6m53s   10.1.166.249   k8s1   <none>           <none>
+redis-health-check-29286795-7nlws   1/1     Running     0          5m54s   10.1.166.221   k8s1   <none>           <none>
+redis-master-0                      1/1     Running     0          6m41s   10.1.166.222   k8s1   <none>           <none>
+redis-proxy-84d87dd67c-9ztg7        1/1     Running     0          6m10s   10.1.166.226   k8s1   <none>           <none>
+redis-proxy-84d87dd67c-trddc        1/1     Running     0          6m10s   10.1.166.243   k8s1   <none>           <none>
+redis-proxy-cert-generator-wlgxh    0/1     Completed   0          6m9s    10.1.166.214   k8s1   <none>           <none>
+redis-replica-0                     1/1     Running     0          6m41s   10.1.166.237   k8s1   <none>           <none>
+redis-replica-1                     1/1     Running     0          6m41s   10.1.166.194   k8s1   <none>           <none>
+redis-replica-2                     1/1     Running     0          6m41s   10.1.166.251   k8s1   <none>           <none>
+\n5. Services Redis...
+NAME                     TYPE           CLUSTER-IP       EXTERNAL-IP                                   PORT(S)                                        AGE
+redis                    ExternalName   <none>           redis-proxy-service.redis.svc.cluster.local   6379/TCP                                       6m9s
+redis-all-endpoints      ClusterIP      None             <none>                                        6379/TCP,6380/TCP                              6m9s
+redis-cluster            ClusterIP      10.152.183.224   <none>                                        6379/TCP                                       6m42s
+redis-cluster-headless   ClusterIP      None             <none>                                        6379/TCP,16379/TCP                             6m42s
+redis-master             ClusterIP      10.152.183.110   <none>                                        6379/TCP,6380/TCP                              6m41s
+redis-proxy-service      NodePort       10.152.183.20    <none>                                        6379:30379/TCP,6380:30380/TCP,8404:30404/TCP   6m10s
+redis-replica            ClusterIP      10.152.183.144   <none>                                        6379/TCP,6380/TCP                              6m41s
+redis-replica-headless   ClusterIP      None             <none>                                        6379/TCP,6380/TCP                              6m41s
+\n6. Certificados...
+NAME                READY   SECRET             AGE
+redis-server-cert   True    redis-tls-secret   6m54s
+Name:         redis-server-cert
+Namespace:    redis
+Labels:       <none>
+Annotations:  <none>
+API Version:  cert-manager.io/v1
+Kind:         Certificate
+Metadata:
+  Creation Timestamp:  2025-09-07T01:14:01Z
+  Generation:          1
+  Resource Version:    862901
+  UID:                 cbef38c5-33b3-4ece-986a-fe377e45ca84
+Spec:
+  Common Name:  redis-master.redis.svc.cluster.local
+  Dns Names:
+    redis-master
+    redis-master.redis
+    redis-master.redis.svc
+    redis-master.redis.svc.cluster.local
+    redis-replica-0.redis-replica-headless.redis.svc.cluster.local
+    redis-replica-1.redis-replica-headless.redis.svc.cluster.local
+    redis-replica-2.redis-replica-headless.redis.svc.cluster.local
+    localhost
+  Ip Addresses:
+    127.0.0.1
+  Issuer Ref:
+    Kind:       Issuer
+    Name:       redis-ca-issuer
+  Secret Name:  redis-tls-secret
+Status:
+  Conditions:
+    Last Transition Time:  2025-09-07T01:14:26Z
+    Message:               Certificate is up to date and has not expired
+    Observed Generation:   1
+    Reason:                Ready
+    Status:                True
+    Type:                  Ready
+  Not After:               2025-12-06T01:14:26Z
+  Not Before:              2025-09-07T01:14:26Z
+  Renewal Time:            2025-11-06T01:14:26Z
+  Revision:                1
+Events:                    <none>
+\n7. Secrets TLS...
+redis-ca-key-pair   kubernetes.io/tls   2      6m48s
+redis-proxy-tls     Opaque              3      6m5s
+redis-tls-secret    kubernetes.io/tls   3      6m29s
+\n8. Jobs de certificados...
+NAME                          STATUS     COMPLETIONS   DURATION   AGE
+redis-ca-generator            Complete   1/1           8s         6m54s
+redis-health-check-29286795   Running    0/1           5m55s      5m55s
+redis-manual-backup           Failed     0/1           6m10s      6m10s
+redis-proxy-cert-generator    Complete   1/1           9s         6m11s
+\n9. Logs dos pods (últimas 10 linhas)...
+--- Redis Master ---
+\n--- Redis Replica 0 ---
+\n--- Redis Proxy ---
+<134>Sep  7 01:20:12 haproxy[8]: 192.168.0.51:55920 [07/Sep/2025:01:20:12.427] stats stats/<STATS> 0/0/0 28796 LR 2/2/0/0/0 0/0
+<134>Sep  7 01:20:16 haproxy[8]: 192.168.0.51:12908 [07/Sep/2025:01:20:05.994] stats stats/<STATS> 0/0/10062 28796 LR 1/1/0/0/0 0/0
+<134>Sep  7 01:20:22 haproxy[8]: 192.168.0.51:38164 [07/Sep/2025:01:20:22.427] stats stats/<STATS> 0/0/0 28796 LR 2/2/0/0/0 0/0
+<134>Sep  7 01:20:26 haproxy[8]: 192.168.0.51:12908 [07/Sep/2025:01:20:16.056] stats stats/<STATS> 0/0/10078 28796 LR 1/1/0/0/0 0/0
+<134>Sep  7 01:20:32 haproxy[8]: 192.168.0.51:47246 [07/Sep/2025:01:20:32.427] stats stats/<STATS> 0/0/0 28796 LR 2/2/0/0/0 0/0
+<134>Sep  7 01:20:36 haproxy[8]: 192.168.0.51:12908 [07/Sep/2025:01:20:26.135] stats stats/<STATS> 0/0/10075 28796 LR 1/1/0/0/0 0/0
+<134>Sep  7 01:20:42 haproxy[8]: 192.168.0.51:39990 [07/Sep/2025:01:20:42.426] stats stats/<STATS> 0/0/0 25944 LR 2/2/0/0/0 0/0
+<134>Sep  7 01:20:46 haproxy[8]: 192.168.0.51:12908 [07/Sep/2025:01:20:36.210] stats stats/<STATS> 0/0/10062 28796 LR 1/1/0/0/0 0/0
+<134>Sep  7 01:20:52 haproxy[8]: 192.168.0.51:37488 [07/Sep/2025:01:20:52.427] stats stats/<STATS> 0/0/0 28793 LR 2/2/0/0/0 0/0
+<134>Sep  7 01:20:56 haproxy[8]: 192.168.0.51:12908 [07/Sep/2025:01:20:46.273] stats stats/<STATS> 0/0/10059 28771 LR 1/1/0/0/0 0/0
+\n10. Eventos recentes no namespace redis...
+LAST SEEN   TYPE      REASON                 OBJECT                                               MESSAGE
+56s         Normal    JobAlreadyActive       cronjob/redis-health-check                           Not starting job because prior execution is running and concurrency policy is Forbid
+36s         Warning   BackOff                pod/redis-manual-backup-k9n47                        Back-off restarting failed container redis-backup in pod redis-manual-backup-k9n47_redis(aef71be1-f362-43ca-a818-eb84676d828b)
+21s         Normal    Pulled                 pod/redis-manual-backup-k9n47                        Container image "redis:7-alpine" already present on machine
+21s         Normal    Created                pod/redis-manual-backup-k9n47                        Created container: redis-backup
+21s         Normal    Started                pod/redis-manual-backup-k9n47                        Started container redis-backup
+20s         Normal    SuccessfulDelete       job/redis-manual-backup                              Deleted pod: redis-manual-backup-k9n47
+19s         Warning   BackoffLimitExceeded   job/redis-manual-backup                              Job has reached the specified backoff limit
+10s         Warning   FailedGetScale         horizontalpodautoscaler/redis-exporter-replica-hpa   deployments/scale.apps "redis-exporter-replica" not found
+\n11. Teste de conectividade interna...
+Testando resolução DNS interna...
+Server:         10.152.183.10
+Address:        10.152.183.10:53
+
+
+Name:   redis-master.redis.svc.cluster.local
+Address: 10.152.183.110
+
+pod "redis-test" deleted
+\n12. Informações de conexão...
+IP Interno do Node: 192.168.0.51
+IP Externo do Node:
+Porta TLS Externa: 30380
+Porta Proxy Externa: 30379 (se habilitada)
+\n=== Comandos de Teste ===
+Conexão TLS (recomendada):
+redis-cli -h 192.168.0.51 -p 30380 --tls --insecure -a Admin@123 ping
+\nConexão via proxy (se disponível):
+redis-cli -h 192.168.0.51 -p 30379 -a Admin@123 ping
+\nConexão interna no cluster:
+microk8s kubectl run redis-client --image=redis:7-alpine --rm -it --restart=Never -n redis -- \
+  redis-cli -h redis-master.redis.svc.cluster.local -p 6380 --tls --insecure -a Admin@123 ping
+\n13. Diagnóstico de problemas...
+✅ Secret redis-tls-secret encontrado
+✅ Secret redis-proxy-tls encontrado
+✅ Certificado redis-server-cert está pronto
+\n=== Diagnóstico Concluído ===
+root@k8s1:/home/k8s1/k8s/redis#
