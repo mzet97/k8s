@@ -54,120 +54,57 @@ echo "🏗️  Passo 2: Criando namespace redis..."
 microk8s kubectl create namespace redis --dry-run=client -o yaml | microk8s kubectl apply -f -
 echo "✅ Namespace redis criado/verificado"
 
-# Passo 3: Instalar cert-manager (se não estiver instalado)
-echo "🔐 Passo 3: Verificando cert-manager..."
-if ! microk8s kubectl get namespace cert-manager &> /dev/null; then
-    echo "📦 Habilitando addon cert-manager no MicroK8s..."
-    microk8s enable cert-manager
-    
-    echo "⏳ Aguardando cert-manager ficar pronto..."
-    microk8s kubectl wait --for=condition=ready pod -l app=cert-manager -n cert-manager --timeout=300s
-    microk8s kubectl wait --for=condition=ready pod -l app=cainjector -n cert-manager --timeout=300s
-    microk8s kubectl wait --for=condition=ready pod -l app=webhook -n cert-manager --timeout=300s
-    echo "✅ cert-manager instalado e pronto"
-else
-    echo "✅ cert-manager já está instalado"
-fi
+# Passo 3: Pular configuração TLS (temporariamente para debug)
+echo "⚠️  Passo 3: Pulando configuração TLS para debug..."
+echo "✅ Configuração TLS pulada"
 
-# Passo 4: Criar ClusterIssuer para TLS
-echo "🔒 Passo 4: Configurando ClusterIssuer para TLS..."
-cat <<EOF | microk8s kubectl apply -f -
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: selfsigned-issuer
-spec:
-  selfSigned: {}
----
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: redis-tls-cert
-  namespace: redis
-spec:
-  secretName: redis-tls-secret
-  issuerRef:
-    name: selfsigned-issuer
-    kind: ClusterIssuer
-  commonName: redis.redis.svc.cluster.local
-  dnsNames:
-  - redis.redis.svc.cluster.local
-  - redis-master.redis.svc.cluster.local
-  - redis-replica.redis.svc.cluster.local
-  - "*.redis.svc.cluster.local"
-  - "*.redis-headless.redis.svc.cluster.local"
-EOF
-echo "✅ ClusterIssuer e Certificate configurados"
-
-# Passo 5: Aguardar certificado TLS
-echo "⏳ Passo 5: Aguardando certificado TLS ser criado..."
-microk8s kubectl wait --for=condition=ready certificate redis-tls-cert -n redis --timeout=300s
-echo "✅ Certificado TLS criado com sucesso"
-
-# Passo 6: Instalar Redis com Helm
-echo "🚀 Passo 6: Instalando Redis com Helm..."
+# Passo 4: Instalar Redis com Helm (sem TLS)
+echo "🚀 Passo 4: Instalando Redis com Helm (sem TLS para debug)..."
 microk8s helm3 upgrade --install redis-cluster bitnami/redis \
   --namespace redis \
   --values values.yaml \
   --set global.security.allowInsecureImages=true \
   --set master.persistence.enabled=false \
   --set replica.persistence.enabled=false \
+  --set tls.enabled=false \
   --wait --timeout=900s
 
 echo "✅ Redis instalado com sucesso!"
 
-# Passo 7: Aguardar pods ficarem prontos
-echo "⏳ Passo 7: Aguardando pods Redis ficarem prontos..."
+# Passo 5: Aguardar pods ficarem prontos
+echo "⏳ Passo 5: Aguardando pods Redis ficarem prontos..."
 microk8s kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=redis -n redis --timeout=300s
 echo "✅ Todos os pods Redis estão prontos"
 
-# Passo 8: Aplicar HPA (Horizontal Pod Autoscaler)
-echo "📈 Passo 8: Configurando HPA para replicas..."
+# Passo 6: Aplicar HPA (Horizontal Pod Autoscaler)
+echo "📈 Passo 6: Configurando HPA para replicas..."
 microk8s kubectl apply -f hpa-config.yaml
 echo "✅ HPA configurado para autoscaling das replicas"
 
-# Passo 9: Verificar status da instalação
-echo "🔍 Passo 9: Verificando status da instalação..."
+# Passo 7: Verificar status da instalação
+echo "🔍 Passo 7: Verificando status da instalação..."
+echo "📊 Status dos pods:"
+microk8s kubectl get pods -n redis
 echo ""
-echo "📊 Status dos Pods:"
-microk8s kubectl get pods -n redis -o wide
-echo ""
-echo "🌐 Services:"
+echo "📊 Status dos services:"
 microk8s kubectl get svc -n redis
 echo ""
-echo "🔐 Secrets:"
-microk8s kubectl get secrets -n redis
-echo ""
-echo "📜 Certificados:"
-microk8s kubectl get certificates -n redis
-echo ""
-echo "📈 HPA Status:"
+echo "📊 Status do HPA:"
 microk8s kubectl get hpa -n redis
-echo ""
+echo "✅ Verificação concluída!"
 
-# Passo 10: Obter informações de conexão
-echo "📋 Passo 10: Informações de conexão:"
-echo ""
+# Passo 8: Obter informações de conexão
+echo "📋 Passo 8: Informações de conexão (sem TLS):"
 echo "🔑 Para obter a senha do Redis:"
-echo "microk8s kubectl get secret redis-cluster -n redis -o jsonpath='{.data.redis-password}' | base64 -d"
+echo "   microk8s kubectl get secret --namespace redis redis-cluster -o jsonpath='{.data.redis-password}' | base64 -d"
 echo ""
-echo "🔗 Para conectar ao Redis Master:"
-echo "microk8s kubectl run redis-client --rm -it --restart=Never --namespace redis --image docker.io/bitnami/redis:7.2.4-debian-11-r0 -- bash"
-echo "Dentro do pod:"
-echo "REDISCLI_AUTH=\$(microk8s kubectl get secret redis-cluster -n redis -o jsonpath='{.data.redis-password}' | base64 -d)"
-echo "redis-cli -h redis-cluster-master.redis.svc.cluster.local -p 6379 --tls --cert /etc/ssl/certs/redis.crt --key /etc/ssl/private/redis.key --cacert /etc/ssl/certs/ca.crt"
+echo "🌐 Para conectar ao Redis:"
+echo "   microk8s kubectl port-forward --namespace redis svc/redis-cluster-master 6379:6379 &"
+echo "   redis-cli -h 127.0.0.1 -p 6379 -a \$(microk8s kubectl get secret --namespace redis redis-cluster -o jsonpath='{.data.redis-password}' | base64 -d)"
 echo ""
-echo "🔗 Para conectar às Replicas:"
-echo "redis-cli -h redis-cluster-replica.redis.svc.cluster.local -p 6379 --tls --cert /etc/ssl/certs/redis.crt --key /etc/ssl/private/redis.key --cacert /etc/ssl/certs/ca.crt"
+echo "📈 Para acessar métricas:"
+echo "   microk8s kubectl port-forward --namespace redis svc/redis-cluster-metrics 9121:9121 &"
+echo "   curl http://127.0.0.1:9121/metrics"
 echo ""
-echo "📊 Para monitorar métricas:"
-echo "microk8s kubectl port-forward svc/redis-cluster-metrics 9121:9121 -n redis"
-echo "Acesse: http://localhost:9121/metrics"
-echo ""
-echo "🎉 Instalação concluída com sucesso!"
-echo "   - 1 Master Redis"
-echo "   - 3 Replicas Redis"
-echo "   - TLS habilitado"
-echo "   - DNS configurado"
-echo "   - Métricas habilitadas"
-echo "   - Persistência habilitada"
+echo "⚠️  NOTA: TLS foi desabilitado temporariamente para debug"
+echo "🎉 Instalação do Redis concluída com sucesso!"
