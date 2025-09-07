@@ -187,8 +187,12 @@ microk8s kubectl get storageclass
 
 # 10. Verificar ingress controller
 log_info "10. Verificando Ingress Controller..."
+log_info "Pods do Ingress Controller:"
 microk8s kubectl get pods -n ingress
-microk8s kubectl get svc -n ingress
+log_info "Serviços do Ingress (pode estar vazio se nenhum ingress foi criado ainda):"
+microk8s kubectl get svc -n ingress 2>/dev/null || log_info "Nenhum serviço encontrado no namespace ingress (normal se nenhum ingress foi configurado)"
+log_info "Verificando se o Ingress Controller está respondendo:"
+microk8s kubectl get pods -n ingress -o wide
 
 # 11. Verificar cert-manager
 log_info "11. Verificando Cert-Manager..."
