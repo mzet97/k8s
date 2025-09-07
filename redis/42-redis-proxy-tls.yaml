@@ -27,15 +27,25 @@ data:
         timeout client 50000ms
         timeout server 50000ms
 
-    # Frontend para conexões externas (sem TLS)
+    # Frontend para conexões externas (sem TLS) - Master para escrita
     frontend redis_frontend
         bind *:6379
         default_backend redis_backend
 
-    # Frontend para conexões externas com TLS opcional
+    # Frontend para conexões externas com TLS - Master para escrita
     frontend redis_tls_frontend
         bind *:6380 ssl crt /etc/ssl/certs/redis-proxy.pem ssl-min-ver TLSv1.2
         default_backend redis_backend
+
+    # Frontend para leitura com balanceamento entre réplicas
+    frontend redis_read_frontend
+        bind *:6381
+        default_backend redis_replica_backend
+
+    # Frontend para leitura com TLS e balanceamento entre réplicas
+    frontend redis_read_tls_frontend
+        bind *:6382 ssl crt /etc/ssl/certs/redis-proxy.pem ssl-min-ver TLSv1.2
+        default_backend redis_replica_backend
 
     # Endpoint de estatísticas para liveness/monitoramento
     listen stats
@@ -219,7 +229,7 @@ spec:
           name: redis-proxy-config
       - name: tls-certs
         secret:
-          secretName: redis-proxy-tls
+          secretName: redis-tls-secret
 
 ---
 # Service para o proxy
@@ -241,6 +251,14 @@ spec:
     targetPort: 6380
     nodePort: 30380
     name: redis-tls
+  - port: 6381
+    targetPort: 6381
+    nodePort: 30381
+    name: redis-read
+  - port: 6382
+    targetPort: 6382
+    nodePort: 30382
+    name: redis-read-tls
   - port: 8404
     targetPort: 8404
     nodePort: 30404

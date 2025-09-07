@@ -52,7 +52,7 @@ echo
 # Test internal connectivity
 echo "5. Testing internal connectivity..."
 echo "Testing if redis-master is reachable internally:"
-microk8s kubectl run redis-test --image=redis:7-alpine --rm -it --restart=Never -n redis -- redis-cli -h redis-master.redis.svc.cluster.local -p 6379 -a Admin@123 ping 2>/dev/null || echo "Internal connection to redis-master failed"
+microk8s kubectl run redis-test --image=redis:7-alpine --rm -it --restart=Never -n redis -- redis-cli -h redis-master.redis.svc.cluster.local -p 6380 --tls --insecure -a Admin@123 ping 2>/dev/null || echo "Internal connection to redis-master failed"
 echo
 echo "Testing if redis-proxy-service is reachable internally:"
 microk8s kubectl run redis-test --image=redis:7-alpine --rm -it --restart=Never -n redis -- redis-cli -h redis-proxy-service.redis.svc.cluster.local -p 6379 -a Admin@123 ping 2>/dev/null || echo "Internal connection to redis-proxy-service failed"
@@ -64,7 +64,7 @@ echo "TLS secrets:"
 microk8s kubectl get secrets -n redis | grep tls
 echo
 echo "Redis TLS secret details:"
-microk8s kubectl describe secret redis-tls -n redis 2>/dev/null || echo "redis-tls secret NOT FOUND"
+microk8s kubectl describe secret redis-tls-secret -n redis 2>/dev/null || echo "redis-tls-secret secret NOT FOUND"
 echo
 echo "Redis proxy TLS secret details:"
 microk8s kubectl describe secret redis-proxy-tls -n redis 2>/dev/null || echo "redis-proxy-tls secret NOT FOUND"
@@ -94,8 +94,8 @@ echo "   redis-cli -h $NODE_IP -p 30080 -a Admin@123 ping  # Node 1"
 echo "   redis-cli -h $NODE_IP -p 30081 -a Admin@123 ping  # Node 2"
 echo
 echo "C) Port forwarding (if external access fails):"
-echo "   microk8s kubectl port-forward svc/redis-master 6379:6379 -n redis &"
-echo "   redis-cli -h localhost -p 6379 -a Admin@123 ping"
+echo "   microk8s kubectl port-forward svc/redis-master 6380:6380 -n redis &"
+echo "   redis-cli -h localhost -p 6380 --tls --insecure -a Admin@123 ping"
 echo
 echo "D) Check if services are properly deployed:"
 echo "   microk8s kubectl apply -f /path/to/redis/manifests/"

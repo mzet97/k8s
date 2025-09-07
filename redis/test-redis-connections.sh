@@ -78,17 +78,17 @@ echo "1. Testing external connections via NodePort..."
 echo
 
 # Test proxy connections (most likely to work)
-test_connection "Redis Proxy (non-TLS)" "$NODE_IP" "30379" ""
 test_connection "Redis Proxy (TLS)" "$NODE_IP" "30380" "--tls"
+test_connection "Redis Proxy (non-TLS)" "$NODE_IP" "30379" ""
 
 echo
 echo "2. Testing direct Redis node connections..."
 echo
 
-# Test direct node connections
-test_connection "Redis Node 0" "$NODE_IP" "30079" ""
-test_connection "Redis Node 1" "$NODE_IP" "30080" ""
-test_connection "Redis Node 2" "$NODE_IP" "30081" ""
+# Test direct node connections with TLS
+test_connection "Redis Node 0 (TLS)" "$NODE_IP" "30079" "--tls"
+test_connection "Redis Node 1 (TLS)" "$NODE_IP" "30080" "--tls"
+test_connection "Redis Node 2 (TLS)" "$NODE_IP" "30081" "--tls"
 
 echo
 echo "3. Testing hostname-based connections..."
@@ -111,15 +111,15 @@ echo
 
 # Test port forwarding to different services
 if microk8s kubectl get svc redis-master -n redis >/dev/null 2>&1; then
-    test_port_forward "redis-master" "6379" "6379"
+    test_port_forward "redis-master" "6380" "6380"
 fi
 
 if microk8s kubectl get svc redis-proxy-service -n redis >/dev/null 2>&1; then
-    test_port_forward "redis-proxy-service" "6380" "6379"
+    test_port_forward "redis-proxy-service" "6380" "6380"
 fi
 
 if microk8s kubectl get svc redis-cluster -n redis >/dev/null 2>&1; then
-    test_port_forward "redis-cluster" "6381" "6379"
+    test_port_forward "redis-cluster" "6380" "6380"
 fi
 
 echo

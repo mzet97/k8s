@@ -33,8 +33,27 @@ echo "✅ Certificados TLS configurados"
 echo ""
 
 # Aguardar certificados serem criados
-echo "⏳ Aguardando certificados serem criados..."
-sleep 10
+echo "⏳ Aguardando certificados TLS serem criados..."
+echo "Verificando se o secret redis-tls-secret foi criado..."
+
+# Aguardar até 120 segundos pelos certificados
+for i in {1..24}; do
+    if microk8s kubectl get secret redis-tls-secret -n redis >/dev/null 2>&1; then
+        echo "✅ Secret redis-tls-secret criado com sucesso!"
+        break
+    fi
+    echo "Tentativa $i/24: Aguardando secret redis-tls-secret..."
+    sleep 5
+done
+
+# Verificar se o secret foi criado
+if ! microk8s kubectl get secret redis-tls-secret -n redis >/dev/null 2>&1; then
+    echo "❌ Erro: Secret redis-tls-secret não foi criado após 120 segundos"
+    echo "Verifique os logs do cert-manager:"
+    echo "microk8s kubectl logs -n cert-manager -l app=cert-manager"
+    exit 1
+fi
+
 microk8s kubectl -n redis get certificates
 echo ""
 
@@ -55,8 +74,22 @@ echo "✅ Redis Master e Réplicas implantados"
 echo ""
 
 # Aguardar pods estarem prontos
-echo "⏳ Aguardando pods estarem prontos..."
-sleep 30
+echo "⏳ Aguardando pods Redis estarem prontos..."
+echo "Verificando se os pods Redis Master e Replica estão funcionando..."
+
+# Aguardar até 180 segundos pelos pods
+for i in {1..36}; do
+    READY_PODS=$(microk8s kubectl get pods -n redis -l 'app in (redis-master,redis-replica)' --no-headers 2>/dev/null | grep -c "Running" || echo "0")
+    TOTAL_PODS=$(microk8s kubectl get pods -n redis -l 'app in (redis-master,redis-replica)' --no-headers 2>/dev/null | wc -l || echo "0")
+    
+    if [ "$READY_PODS" -gt 0 ] && [ "$READY_PODS" -eq "$TOTAL_PODS" ]; then
+        echo "✅ Todos os pods Redis estão funcionando ($READY_PODS/$TOTAL_PODS)!"
+        break
+    fi
+    echo "Tentativa $i/36: Pods prontos: $READY_PODS/$TOTAL_PODS"
+    sleep 5
+done
+
 microk8s kubectl -n redis get pods
 echo ""
 

@@ -90,7 +90,7 @@ echo
 check_resource "service" "redis-master" "redis"
 check_resource "service" "redis-proxy-service" "redis"
 check_resource "secret" "redis-auth" "redis"
-check_resource "secret" "redis-tls" "redis"
+check_resource "secret" "redis-tls-secret" "redis"
 
 echo
 echo "5. Testing internal connectivity..."
@@ -98,7 +98,7 @@ echo
 
 # Test internal connectivity
 echo "Testing Redis master internal connectivity..."
-if microk8s kubectl run redis-test-master --image=redis:7-alpine --rm -i --restart=Never -n redis -- redis-cli -h redis-master.redis.svc.cluster.local -p 6379 -a Admin@123 ping 2>/dev/null | grep -q PONG; then
+if microk8s kubectl run redis-test-master --image=redis:7-alpine --rm -i --restart=Never -n redis -- redis-cli -h redis-master.redis.svc.cluster.local -p 6380 --tls --insecure -a Admin@123 ping 2>/dev/null | grep -q PONG; then
     echo "✓ Redis master internal connection successful"
 else
     echo "✗ Redis master internal connection failed"
@@ -133,8 +133,8 @@ echo "redis-cli -h $NODE_IP -p 30080 -a Admin@123 ping  # Node 1"
 echo "redis-cli -h $NODE_IP -p 30081 -a Admin@123 ping  # Node 2"
 echo
 echo "# Port forwarding (if external access fails):"
-echo "microk8s kubectl port-forward svc/redis-master 6379:6379 -n redis &"
-echo "redis-cli -h localhost -p 6379 -a Admin@123 ping"
+echo "microk8s kubectl port-forward svc/redis-master 6380:6380 -n redis &"
+echo "redis-cli -h localhost -p 6380 --tls --insecure -a Admin@123 ping"
 echo
 echo "# Check HAProxy stats:"
 echo "curl -u admin:admin123 http://$NODE_IP:30404/stats"
@@ -145,7 +145,7 @@ echo
 echo "If connections still fail:"
 echo "1. Check pod logs: microk8s kubectl logs -l app=redis-proxy -n redis"
 echo "2. Check Redis master logs: microk8s kubectl logs -l app=redis-master -n redis"
-echo "3. Verify TLS certificates: microk8s kubectl describe secret redis-tls -n redis"
+echo "3. Verify TLS certificates: microk8s kubectl describe secret redis-tls-secret -n redis"
 echo "4. Check if firewall is blocking ports 30379, 30380"
 echo "5. Verify DNS resolution: nslookup redis.home.arpa"
 echo

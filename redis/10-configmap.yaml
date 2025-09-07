@@ -10,6 +10,9 @@ data:
     bind 0.0.0.0
     protected-mode no
     
+    # Autenticação
+    requirepass "Admin@123"
+    
     # Persistência
     save 900 1
     save 300 10
@@ -41,6 +44,10 @@ data:
     port 6379
     bind 0.0.0.0
     protected-mode no
+    
+    # Autenticação
+    masterauth "Admin@123"
+    requirepass "Admin@123"
     
     # Replicação
     replicaof redis-master.redis.svc.cluster.local 6380
