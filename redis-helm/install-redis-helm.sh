@@ -109,12 +109,10 @@ echo "🚀 Passo 6: Instalando Redis com Helm..."
 microk8s helm3 upgrade --install redis-cluster bitnami/redis \
   --namespace redis \
   --values values.yaml \
-  --set tls.existingSecret=redis-tls-secret \
-  --set tls.certFilename=tls.crt \
-  --set tls.certKeyFilename=tls.key \
-  --set tls.certCAFilename=ca.crt \
   --set global.security.allowInsecureImages=true \
-  --wait --timeout=600s
+  --set master.persistence.enabled=false \
+  --set replica.persistence.enabled=false \
+  --wait --timeout=900s
 
 echo "✅ Redis instalado com sucesso!"
 
