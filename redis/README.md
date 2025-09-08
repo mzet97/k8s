@@ -1,5 +1,25 @@
 # Redis Master-Replica no Kubernetes
 
+## 🚀 Acesso Externo Simplificado
+
+**Para acessar Redis CLI de outras máquinas (problema principal):**
+
+```bash
+# 1. No servidor (onde está o cluster Kubernetes)
+cd redis/
+chmod +x setup-external-client.sh
+./setup-external-client.sh
+
+# 2. O script irá automaticamente:
+#    - Detectar IP do cluster
+#    - Configurar DNS (/etc/hosts)
+#    - Instalar Redis CLI
+#    - Testar conectividade
+#    - Gerar script para Windows
+```
+
+**📋 Guia Completo:** Consulte [EXTERNAL-ACCESS-GUIDE.md](EXTERNAL-ACCESS-GUIDE.md) para instruções detalhadas.
+
 ## 🚨 Solução para Problemas de Instalação
 
 ### Erro "integer expression expected" no Script de Instalação
