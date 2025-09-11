@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: coder
+  namespace: coder
+  annotations:
+    kubernetes.io/ingress.class: public
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # WebSockets/timeouts (Coder e IDEs usam WS)
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    # (Opcional) uploads maiores:
+    nginx.ingress.kubernetes.io/proxy-body-size: "500m"
+spec:
+  tls:
+    - hosts:
+        - coder.seu-dominio.com
+      secretName: coder-tls
+  rules:
+    - host: coder.seu-dominio.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: coder
+                port:
+                  number: 80
