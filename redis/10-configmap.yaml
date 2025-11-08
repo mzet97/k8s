@@ -10,8 +10,7 @@ data:
     bind 0.0.0.0
     protected-mode no
     
-    # Autenticação
-    requirepass "Admin@123"
+    # Autenticação (senha injetada via variável de ambiente no StatefulSet)
     
     # Persistência
     save 900 1
@@ -29,7 +28,7 @@ data:
     
     # Logs
     loglevel notice
-    logfile "/data/redis-master.log"
+    logfile ""
     
     # TLS Configuration
     tls-port 6380
@@ -45,9 +44,7 @@ data:
     bind 0.0.0.0
     protected-mode no
     
-    # Autenticação
-    masterauth "Admin@123"
-    requirepass "Admin@123"
+    # Autenticação (senha injetada via variável de ambiente no StatefulSet)
     
     # Replicação
     replicaof redis-master.redis.svc.cluster.local 6380
@@ -71,7 +68,7 @@ data:
     
     # Logs
     loglevel notice
-    logfile "/data/redis-replica.log"
+    logfile ""
     
     # TLS Configuration
     tls-port 6380

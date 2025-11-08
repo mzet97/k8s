@@ -73,11 +73,28 @@ log_info "Instalando MicroK8s..."
 snap install microk8s --classic
 
 # Adicionar usuário ao grupo microk8s
-USER_NAME=$(logname 2>/dev/null || echo $SUDO_USER)
+# Determinar o nome de usuário que invocou o script ou o usuário atual se executado como root
+if [ -n "$SUDO_USER" ]; then
+    USER_NAME="$SUDO_USER"
+else
+    USER_NAME="$(whoami)"
+fi
 if [ ! -z "$USER_NAME" ]; then
     log_info "Adicionando usuário $USER_NAME ao grupo microk8s..."
     usermod -a -G microk8s $USER_NAME
-    chown -f -R $USER_NAME ~/.kube
+    # A nova sessão do usuário precisará do grupo microk8s
+    # Para aplicar imediatamente, o usuário precisaria fazer 'newgrp microk8s'
+    # ou logar novamente. Para o script, vamos garantir que o kubeconfig seja acessível.
+
+    log_info "Configurando kubeconfig para o usuário $USER_NAME..."
+    HOME_DIR=$(eval echo ~$USER_NAME)
+    mkdir -p $HOME_DIR/.kube
+    microk8s config > $HOME_DIR/.kube/config
+    chown -f -R $USER_NAME:$USER_NAME $HOME_DIR/.kube
+    chmod 600 $HOME_DIR/.kube/config
+    log_info "Kubeconfig configurado em $HOME_DIR/.kube/config"
+else
+    log_warning "Não foi possível determinar o usuário para configurar o kubeconfig. Configure manualmente se necessário."
 fi
 
 # Aguardar MicroK8s estar pronto
@@ -90,14 +107,36 @@ microk8s status
 
 log_success "MicroK8s instalado com sucesso!"
 
-# Configurar alias kubectl
-log_info "Configurando alias kubectl..."
-echo 'alias kubectl="microk8s kubectl"' >> /home/$USER_NAME/.bashrc
-echo 'alias k="microk8s kubectl"' >> /home/$USER_NAME/.bashrc
+# Configurar alias kubectl para o usuário
+log_info "Configurando alias kubectl para o usuário $USER_NAME..."
+USER_BASHRC="/home/$USER_NAME/.bashrc"
+if [ -f "$USER_BASHRC" ]; then
+    if ! grep -q 'alias kubectl="microk8s kubectl"' "$USER_BASHRC"; then
+        echo 'alias kubectl="microk8s kubectl"' >> "$USER_BASHRC"
+    fi
+    if ! grep -q 'alias k="microk8s kubectl"' "$USER_BASHRC"; then
+        echo 'alias k="microk8s kubectl"' >> "$USER_BASHRC"
+    fi
+    chown $USER_NAME:$USER_NAME "$USER_BASHRC"
+else
+    log_warning "Arquivo $USER_BASHRC não encontrado para o usuário $USER_NAME. Aliases não configurados."
+fi
 
-# Configurar kubectl para root também
-echo 'alias kubectl="microk8s kubectl"' >> /root/.bashrc
-echo 'alias k="microk8s kubectl"' >> /root/.bashrc
+# Configurar kubectl para root também (se o script foi executado como root)
+if [ "$EUID" -eq 0 ]; then
+    log_info "Configurando alias kubectl para root..."
+    ROOT_BASHRC="/root/.bashrc"
+    if [ -f "$ROOT_BASHRC" ]; then
+        if ! grep -q 'alias kubectl="microk8s kubectl"' "$ROOT_BASHRC"; then
+            echo 'alias kubectl="microk8s kubectl"' >> "$ROOT_BASHRC"
+        fi
+        if ! grep -q 'alias k="microk8s kubectl"' "$ROOT_BASHRC"; then
+            echo 'alias k="microk8s kubectl"' >> "$ROOT_BASHRC"
+        fi
+    else
+        log_warning "Arquivo $ROOT_BASHRC não encontrado. Aliases para root não configurados."
+    fi
+fi
 
 log_success "Aliases configurados! Use 'kubectl' ou 'k' como atalho."
 log_info "Execute 'source ~/.bashrc' ou abra um novo terminal para usar os aliases."

@@ -44,13 +44,11 @@ data:
     echo "# Redis Kubernetes" | sudo tee -a /etc/hosts
     echo "$NODE_IP redis.home.arpa" | sudo tee -a /etc/hosts
     echo "$NODE_IP redis-proxy.home.arpa" | sudo tee -a /etc/hosts
-    echo "$NODE_IP redis-master.home.arpa" | sudo tee -a /etc/hosts
-    echo "$NODE_IP redis-replica.home.arpa" | sudo tee -a /etc/hosts
     echo "# End Redis Kubernetes" | sudo tee -a /etc/hosts
     
     echo "DNS configurado com sucesso!"
     echo "Teste a conectividade:"
-    echo "  redis-cli -h redis-proxy.home.arpa -p 30379 -a Admin@123 ping"
+    echo "  redis-cli -h redis-proxy.home.arpa -p 30380 --tls --insecure -a \"$(REDIS_PASSWORD)\" ping"
 
   # Script para Windows (PowerShell)
   setup-dns.ps1: |
@@ -99,8 +97,6 @@ data:
     $newContent += "# Redis Kubernetes"
     $newContent += "$NODE_IP redis.home.arpa"
     $newContent += "$NODE_IP redis-proxy.home.arpa"
-    $newContent += "$NODE_IP redis-master.home.arpa"
-    $newContent += "$NODE_IP redis-replica.home.arpa"
     $newContent += "# End Redis Kubernetes"
     
     # Escrever arquivo atualizado
@@ -108,7 +104,7 @@ data:
     
     Write-Host "DNS configurado com sucesso!"
     Write-Host "Teste a conectividade:"
-    Write-Host "  redis-cli -h redis-proxy.home.arpa -p 30379 -a Admin@123 ping"
+    Write-Host "  redis-cli -h redis-proxy.home.arpa -p 30380 --tls --insecure -a \"<YOUR_REDIS_PASSWORD>\" ping"
 
 ---
 # Opção 2: CoreDNS ConfigMap (para clusters que usam CoreDNS)
@@ -131,17 +127,15 @@ data:
                 300 )       ; minimum
     
     @       IN  NS  ns1.redis.home.arpa.
-    ns1     IN  A   192.168.0.52
+    ns1     IN  A   <NODE_IP_PLACEHOLDER>
     
     ; Redis Services
-    redis-proxy     IN  A   192.168.0.52
-    redis-master    IN  A   192.168.0.52
-    redis-replica   IN  A   192.168.0.52
+    redis-proxy     IN  A   <NODE_IP_PLACEHOLDER>
     
     ; Aliases
     redis           IN  CNAME   redis-proxy
-    db              IN  CNAME   redis-proxy
-    cache           IN  CNAME   redis-proxy
+    redis-master    IN  CNAME   redis-proxy
+    redis-replica   IN  CNAME   redis-proxy
 
 ---
 # Opção 3: Ingress para acesso via HTTP (para ferramentas web)
@@ -180,9 +174,9 @@ spec:
   type: ExternalName
   externalName: redis-proxy-service.redis.svc.cluster.local
   ports:
-  - port: 6379
-    targetPort: 6379
-    name: redis
+  - port: 6380
+    targetPort: 6380
+    name: redis-tls
 
 ---
 # Headless service para descoberta de todos os endpoints
@@ -197,8 +191,6 @@ metadata:
 spec:
   clusterIP: None
   ports:
-  - port: 6379
-    name: redis
   - port: 6380
     name: redis-tls
   selector:
@@ -262,14 +254,14 @@ data:
     ping redis.home.arpa
     
     # Testar conexão Redis
-    redis-cli -h redis.home.arpa -p 30379 -a Admin@123 ping
-    redis-cli -h redis-proxy.home.arpa -p 30379 -a Admin@123 ping
+    redis-cli -h redis.home.arpa -p 30380 --tls --insecure -a YOUR_REDIS_PASSWORD ping
+    redis-cli -h redis-proxy.home.arpa -p 30380 --tls --insecure -a YOUR_REDIS_PASSWORD ping
     ```
     
     ### 4. URLs de Acesso
     
-    - **Redis via Proxy**: `redis://redis.home.arpa:30379`
-    - **Redis com TLS**: `rediss://redis.home.arpa:30380`
+    - **Redis via Proxy (TLS)**: `rediss://redis.home.arpa:30380`
+    - **Redis com TLS (Direto)**: `rediss://redis.home.arpa:30380`
     - **HAProxy Stats**: `http://redis.home.arpa:30404/stats`
     
     ### 5. Configuração para Aplicações
@@ -277,7 +269,7 @@ data:
     #### Python:
     ```python
     import redis
-    r = redis.Redis(host='redis.home.arpa', port=30379, password='Admin@123')
+    r = redis.Redis(host='redis.home.arpa', port=30380, password='YOUR_REDIS_PASSWORD', ssl=True, ssl_cert_reqs=None)
     ```
     
     #### Node.js:
@@ -285,14 +277,18 @@ data:
     const redis = require('redis');
     const client = redis.createClient({
         host: 'redis.home.arpa',
-        port: 30379,
-        password: 'Admin@123'
+        port: 30380,
+        password: 'YOUR_REDIS_PASSWORD',
+        tls: { rejectUnauthorized: false }
     });
     ```
     
     #### Java:
     ```java
-    JedisPool pool = new JedisPool("redis.home.arpa", 30379, "Admin@123");
+    // Exemplo simplificado para Jedis com TLS (necessário configurar SSLContext real)
+    // JedisPool pool = new JedisPool(new JedisPoolConfig(), "redis.home.arpa", 30380, 2000, "YOUR_REDIS_PASSWORD", true);
+    // Jedis jedis = new Jedis("redis.home.arpa", 30380, true);
+    // jedis.auth("YOUR_REDIS_PASSWORD");
     ```
 
   usage-examples.md: |
@@ -305,8 +301,9 @@ data:
     spring:
       redis:
         host: redis.home.arpa
-        port: 30379
-        password: Admin@123
+        port: 30380
+        password: YOUR_REDIS_PASSWORD
+        ssl: true
         timeout: 2000ms
     ```
     
@@ -315,10 +312,10 @@ data:
     CACHES = {
         'default': {
             'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': 'redis://redis.home.arpa:30379/1',
+            'LOCATION': 'rediss://redis.home.arpa:30380/1',
             'OPTIONS': {
                 'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-                'PASSWORD': 'Admin@123',
+                'PASSWORD': 'YOUR_REDIS_PASSWORD',
             }
         }
     }
@@ -327,8 +324,8 @@ data:
     ### Laravel (.env)
     ```env
     REDIS_HOST=redis.home.arpa
-    REDIS_PASSWORD=Admin@123
-    REDIS_PORT=30379
+    REDIS_PASSWORD=YOUR_REDIS_PASSWORD
+    REDIS_PORT=30380
     ```
     
     ### Docker Compose
@@ -338,8 +335,8 @@ data:
       app:
         image: myapp:latest
         environment:
-          - REDIS_URL=redis://redis.home.arpa:30379
-          - REDIS_PASSWORD=Admin@123
+          - REDIS_URL=rediss://redis.home.arpa:30380
+          - REDIS_PASSWORD=YOUR_REDIS_PASSWORD
         # Substitua REPLACE_WITH_NODE_IP pelo IP do nó do cluster acessível ao container
         extra_hosts:
           - "redis.home.arpa:REPLACE_WITH_NODE_IP"
@@ -353,16 +350,16 @@ data:
     datasources:
       - name: Redis
         type: redis-datasource
-        url: redis://redis.home.arpa:30379
+        url: rediss://redis.home.arpa:30380
         jsonData:
-          password: Admin@123
+          password: YOUR_REDIS_PASSWORD
     ```
     
     ### Prometheus Redis Exporter
     ```yaml
     - job_name: 'redis'
       static_configs:
-        - targets: ['redis.home.arpa:30379']
+        - targets: ['redis.home.arpa:30380']
       params:
-        password: ['Admin@123']
+        password: ['YOUR_REDIS_PASSWORD']
     ```

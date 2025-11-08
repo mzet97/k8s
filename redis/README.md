@@ -96,15 +96,7 @@ kubectl get pods -n redis -l app=redis-proxy
 
 1. **Instalar metrics-server**:
    ```bash
-   # Aplicar o manifesto do metrics-server
-   kubectl apply -f 80-metrics-server.yaml
-   
-   # Aguardar ficar pronto
-   kubectl wait --for=condition=ready pod -l k8s-app=metrics-server -n kube-system --timeout=300s
-   
-   # Verificar se está funcionando
-   kubectl top nodes
-   ```
+```
 
 2. **Para MicroK8s** (alternativa):
    ```bash

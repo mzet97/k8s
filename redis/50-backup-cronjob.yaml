@@ -141,7 +141,7 @@ spec:
   resources:
     requests:
       storage: 50Gi
-  storageClassName: microk8s-hostpath
+  storageClassName: microk8s-strict
 ---
 # CronJob para backup automático
 apiVersion: batch/v1
@@ -166,7 +166,7 @@ spec:
             app: redis-backup
         spec:
           restartPolicy: OnFailure
-          serviceAccountName: redis-operator
+          serviceAccountName: redis-manager
           containers:
           - name: redis-backup
             image: redis:7-alpine
@@ -223,7 +223,7 @@ spec:
         type: manual
     spec:
       restartPolicy: OnFailure
-      serviceAccountName: redis-operator
+      serviceAccountName: redis-manager
       containers:
       - name: redis-backup
         image: redis:7-alpine

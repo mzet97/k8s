@@ -5,9 +5,9 @@ service:
 
 # Variáveis de ambiente do container "coder"
 env:
-  # URL pública que os agentes/workspaces usarão
+  # URL local para homelab (ajuste o IP se necessário)
   - name: CODER_ACCESS_URL
-    value: "https://coder.seu-dominio.com"
+    value: "https://coder.home.arpa"
 
   # Injeta a URL do Postgres do Secret coder-db-url
   - name: CODER_PG_CONNECTION_URL

@@ -5,19 +5,19 @@ metadata:
   name: redis-master
   namespace: redis
   labels:
-    app: redis-master
+    app: redis-cluster
     role: master
 spec:
   serviceName: redis-master
   replicas: 1
   selector:
     matchLabels:
-      app: redis-master
+      app: redis-cluster
       role: master
   template:
     metadata:
       labels:
-        app: redis-master
+        app: redis-cluster
         role: master
     spec:
       terminationGracePeriodSeconds: 30
@@ -26,7 +26,7 @@ spec:
         image: redis:7-alpine
         imagePullPolicy: IfNotPresent
         command: ["redis-server"]
-        args: ["/usr/local/etc/redis/redis-master.conf"]
+        args: ["/usr/local/etc/redis/redis-master.conf", "--requirepass", "$(REDIS_PASSWORD)"]
         env:
         - name: REDIS_PASSWORD
           valueFrom:
@@ -103,4 +103,4 @@ spec:
       resources:
         requests:
           storage: 20Gi
-      storageClassName: microk8s-hostpath
+      storageClassName: microk8s-strict

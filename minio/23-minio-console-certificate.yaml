@@ -2,11 +2,11 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: minio-tls
-  namespace: minio-operator
+  namespace: minio
 spec:
   secretName: minio-tls
   dnsNames:
-  - minio.home.arpa
+  - minio-console.home.arpa
   issuerRef:
     kind: ClusterIssuer
     name: local-ca

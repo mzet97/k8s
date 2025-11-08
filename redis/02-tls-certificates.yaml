@@ -1,5 +1,25 @@
 # Certificados TLS para Redis usando cert-manager
 apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: redis-selfsigned-ca-issuer
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: redis-ca-key-pair
+  namespace: redis
+spec:
+  isCA: true
+  commonName: redis-ca
+  secretName: redis-ca-key-pair
+  issuerRef:
+    name: redis-selfsigned-ca-issuer
+    kind: ClusterIssuer
+---
+apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
   name: redis-ca-issuer
@@ -30,74 +50,3 @@ spec:
   - localhost
   ipAddresses:
   - 127.0.0.1
----
-# Job para gerar CA inicial
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: redis-ca-generator
-  namespace: redis
-spec:
-  template:
-    spec:
-      restartPolicy: OnFailure
-      containers:
-      - name: ca-generator
-        image: alpine/openssl:latest
-        command:
-        - sh
-        - -c
-        - |
-          # Instalar kubectl
-          apk add --no-cache curl
-          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-          chmod +x kubectl
-          mv kubectl /usr/local/bin/
-          
-          # Gerar chave privada CA
-          openssl genrsa -out /tmp/ca.key 4096
-          
-          # Gerar certificado CA
-          openssl req -new -x509 -key /tmp/ca.key -sha256 -subj "/C=BR/ST=SP/O=Redis/CN=Redis-CA" -days 3650 -out /tmp/ca.crt
-          
-          # Criar secret com CA usando service account token
-          kubectl create secret tls redis-ca-key-pair \
-            --cert=/tmp/ca.crt \
-            --key=/tmp/ca.key \
-            --namespace=redis || true
-        env:
-        - name: KUBERNETES_SERVICE_HOST
-          value: "kubernetes.default.svc"
-        - name: KUBERNETES_SERVICE_PORT
-          value: "443"
-      serviceAccountName: redis-ca-generator
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: redis-ca-generator
-  namespace: redis
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: redis-ca-generator
-  namespace: redis
-rules:
-- apiGroups: [""]
-  resources: ["secrets"]
-  verbs: ["create", "get", "list"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: redis-ca-generator
-  namespace: redis
-subjects:
-- kind: ServiceAccount
-  name: redis-ca-generator
-  namespace: redis
-roleRef:
-  kind: Role
-  name: redis-ca-generator
-  apiGroup: rbac.authorization.k8s.io

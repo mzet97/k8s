@@ -14,7 +14,7 @@ metadata:
 spec:
   type: NodePort
   selector:
-    app: redis-master
+    app: redis-cluster
     role: master
   ports:
   - name: redis-tls
@@ -37,7 +37,7 @@ metadata:
 spec:
   type: NodePort
   selector:
-    app: redis-replica
+    app: redis-cluster
     role: replica
   ports:
   - name: redis-tls

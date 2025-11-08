@@ -1,8 +1,6 @@
 # ServiceAccount para operações Redis
 apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: redis-operator
+  name: redis-manager
   namespace: redis
 ---
 # Role para gerenciar recursos Redis
@@ -10,7 +8,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   namespace: redis
-  name: redis-operator
+  name: redis-manager
 rules:
 - apiGroups: [""]
   resources: ["secrets", "configmaps", "services", "pods"]
@@ -28,12 +26,11 @@ rules:
 # RoleBinding para associar ServiceAccount ao Role
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
-metadata:
-  name: redis-operator
+  name: redis-manager
   namespace: redis
 subjects:
 - kind: ServiceAccount
-  name: redis-operator
+  name: redis-manager
   namespace: redis
 roleRef:
   kind: Role
@@ -60,7 +57,7 @@ metadata:
   name: redis-cert-manager
 subjects:
 - kind: ServiceAccount
-  name: redis-operator
+  name: redis-manager
   namespace: redis
 roleRef:
   kind: ClusterRole

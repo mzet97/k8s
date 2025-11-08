@@ -87,7 +87,7 @@ spec:
 ---
 # Deployment do Redis Exporter para Réplicas
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: redis-exporter-replica
   namespace: redis
@@ -95,6 +95,7 @@ metadata:
     app: redis-exporter
     role: replica
 spec:
+  serviceName: redis-exporter-replica
   replicas: 3
   selector:
     matchLabels:
@@ -130,7 +131,7 @@ spec:
           name: metrics
         env:
         - name: REDIS_ADDR
-          value: "rediss://redis-replica.redis.svc.cluster.local:6380"
+          value: "rediss://redis-replica-$(POD_NAME_SUFFIX).redis-replica-headless.redis.svc.cluster.local:6380"
         - name: REDIS_PASSWORD
           valueFrom:
             secretKeyRef:
@@ -173,6 +174,11 @@ spec:
       - name: tls-certs
         secret:
           secretName: redis-tls-secret
+        - name: POD_NAME_SUFFIX
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+
 ---
 # Service para Redis Exporter Master
 apiVersion: v1

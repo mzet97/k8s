@@ -34,7 +34,7 @@ Este diretório contém as configurações para deploy do MinIO no Kubernetes, f
 ```bash
 microk8s enable ingress
 microk8s enable cert-manager
-microk8s enable hostpath-storage
+microk8s enable storage
 ```
 
 ### **Passo a passo:**

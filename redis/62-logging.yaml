@@ -15,15 +15,7 @@ data:
         HTTP_Listen   0.0.0.0
         HTTP_Port     2020
 
-    [INPUT]
-        Name              tail
-        Path              /var/log/redis/*.log
-        Parser            redis
-        Tag               redis.*
-        Refresh_Interval  5
-        Mem_Buf_Limit     50MB
-        Skip_Long_Lines   On
-        Skip_Empty_Lines  On
+
 
     [INPUT]
         Name              tail
@@ -181,9 +173,6 @@ spec:
         - name: varlibdockercontainers
           mountPath: /var/lib/docker/containers
           readOnly: true
-        - name: redis-logs
-          mountPath: /var/log/redis
-          readOnly: true
         resources:
           requests:
             memory: "64Mi"
@@ -213,8 +202,6 @@ spec:
       - name: varlibdockercontainers
         hostPath:
           path: /var/lib/docker/containers
-      - name: redis-logs
-        emptyDir: {}
 ---
 # Service para Fluent Bit metrics
 apiVersion: v1
@@ -235,66 +222,3 @@ spec:
   - name: http
     port: 2020
     targetPort: 2020
----
-# ConfigMap para configuração de log rotation
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: redis-logrotate
-  namespace: redis
-data:
-  logrotate.conf: |
-    /var/log/redis/*.log {
-        daily
-        rotate 7
-        compress
-        delaycompress
-        missingok
-        notifempty
-        create 0644 redis redis
-        postrotate
-            /bin/kill -USR1 $(cat /var/run/redis/redis.pid 2>/dev/null) 2>/dev/null || true
-        endscript
-    }
----
-# CronJob para log rotation
-apiVersion: batch/v1
-kind: CronJob
-metadata:
-  name: redis-logrotate
-  namespace: redis
-spec:
-  schedule: "0 2 * * *"  # Diariamente às 2:00 AM
-  jobTemplate:
-    spec:
-      template:
-        spec:
-          restartPolicy: OnFailure
-          containers:
-          - name: logrotate
-            image: alpine:3.18
-            command:
-            - sh
-            - -c
-            - |
-              apk add --no-cache logrotate
-              logrotate -f /etc/logrotate.d/redis
-            volumeMounts:
-            - name: logrotate-config
-              mountPath: /etc/logrotate.d/redis
-              subPath: logrotate.conf
-            - name: redis-logs
-              mountPath: /var/log/redis
-            resources:
-              requests:
-                memory: "32Mi"
-                cpu: "10m"
-              limits:
-                memory: "64Mi"
-                cpu: "100m"
-          volumes:
-          - name: logrotate-config
-            configMap:
-              name: redis-logrotate
-          - name: redis-logs
-            emptyDir: {}

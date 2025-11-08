@@ -53,50 +53,20 @@ log_info "Aguardando DNS estar pronto..."
 microk8s kubectl wait --for=condition=ready pod -l k8s-app=kube-dns -n kube-system --timeout=120s
 
 # 2. Habilitar Hostpath Storage
-log_info "2. Habilitando Hostpath Storage..."
-microk8s enable hostpath-storage
-log_success "Hostpath Storage habilitado"
+log_info "2. Habilitando Storage (Hostpath Provisioner)..."
+microk8s enable storage
+log_success "Storage habilitado"
 
-# Aguardar storage estar pronto
-log_info "Aguardando Hostpath Storage estar pronto..."
-# Verificar se o hostpath-provisioner está rodando
-log_info "Verificando se hostpath-provisioner está disponível..."
-for i in {1..30}; do
-    if microk8s kubectl get pods -n kube-system | grep -q hostpath-provisioner; then
-        log_info "Hostpath-provisioner encontrado, aguardando estar pronto..."
-        microk8s kubectl wait --for=condition=ready pod -l app=hostpath-provisioner -n kube-system --timeout=60s 2>/dev/null || \
-        microk8s kubectl wait --for=condition=ready pod -l k8s-app=hostpath-provisioner -n kube-system --timeout=60s 2>/dev/null || \
-        log_warning "Hostpath-provisioner pode não estar totalmente pronto, mas continuando..."
-        break
-    else
-        log_info "Aguardando hostpath-provisioner aparecer... ($i/30)"
-        sleep 2
-    fi
-done
+log_info "Aguardando Hostpath Provisioner estar pronto..."
+microk8s kubectl wait --for=condition=ready pod -l app=hostpath-provisioner -n kube-system --timeout=120s || log_warning "Hostpath Provisioner pode não estar totalmente pronto, mas continuando..."
 
 # 3. Habilitar Ingress
 log_info "3. Habilitando Ingress NGINX..."
 microk8s enable ingress
 log_success "Ingress NGINX habilitado"
 
-# Aguardar ingress estar pronto
 log_info "Aguardando Ingress Controller estar pronto..."
-# Verificar se o namespace ingress existe
-log_info "Verificando se namespace ingress está disponível..."
-for i in {1..30}; do
-    if microk8s kubectl get namespace ingress >/dev/null 2>&1; then
-        log_info "Namespace ingress encontrado, aguardando pods..."
-        # Tentar diferentes labels possíveis para o ingress
-        microk8s kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=ingress-nginx -n ingress --timeout=60s 2>/dev/null || \
-        microk8s kubectl wait --for=condition=ready pod -l app=ingress-nginx-controller -n ingress --timeout=60s 2>/dev/null || \
-        microk8s kubectl wait --for=condition=ready pod -l app.kubernetes.io/component=controller -n ingress --timeout=60s 2>/dev/null || \
-        log_warning "Ingress Controller pode não estar totalmente pronto, mas continuando..."
-        break
-    else
-        log_info "Aguardando namespace ingress aparecer... ($i/30)"
-        sleep 2
-    fi
-done
+microk8s kubectl wait --for=condition=ready pod -l app.kubernetes.io/component=controller -n ingress --timeout=120s || log_warning "Ingress Controller pode não estar totalmente pronto, mas continuando..."
 
 # 4. Habilitar Helm
 log_info "4. Habilitando Helm..."
@@ -124,17 +94,7 @@ done
 
 # Aguardar pods do cert-manager com verificação robusta
 log_info "Aguardando pods do cert-manager..."
-microk8s kubectl wait --for=condition=ready pod -l app=cert-manager -n cert-manager --timeout=60s 2>/dev/null || \
-microk8s kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=cert-manager -n cert-manager --timeout=60s 2>/dev/null || \
-log_warning "Cert-manager pod pode não estar totalmente pronto, mas continuando..."
-
-microk8s kubectl wait --for=condition=ready pod -l app=cainjector -n cert-manager --timeout=60s 2>/dev/null || \
-microk8s kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=cainjector -n cert-manager --timeout=60s 2>/dev/null || \
-log_warning "Cainjector pod pode não estar totalmente pronto, mas continuando..."
-
-microk8s kubectl wait --for=condition=ready pod -l app=webhook -n cert-manager --timeout=60s 2>/dev/null || \
-microk8s kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=webhook -n cert-manager --timeout=60s 2>/dev/null || \
-log_warning "Webhook pod pode não estar totalmente pronto, mas continuando..."
+microk8s kubectl wait --for=condition=available deployment/cert-manager -n cert-manager --timeout=180s || log_warning "Cert-manager deployment pode não estar totalmente pronto, mas continuando..."
 
 # 6. Configurações adicionais
 log_info "6. Aplicando configurações adicionais..."
@@ -146,13 +106,6 @@ apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
   name: selfsigned-issuer
-spec:
-  selfSigned: {}
----
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: selfsigned-cluster-issuer
 spec:
   selfSigned: {}
 EOF
@@ -200,26 +153,29 @@ microk8s kubectl get pods -n cert-manager
 microk8s kubectl get clusterissuers
 
 # 12. Configurar kubeconfig para acesso externo (opcional)
-log_info "12. Configurando kubeconfig..."
+log_info "12. Configurando kubeconfig para acesso externo..."
 
-# Criar diretório se não existir
-mkdir -p ~/.kube 2>/dev/null || true
+# Determinar o nome de usuário que invocou o script ou o usuário atual se executado como root
+if [ -n "$SUDO_USER" ]; then
+    CURRENT_USER="$SUDO_USER"
+else
+    CURRENT_USER="$(whoami)"
+fi
 
-# Salvar kubeconfig no diretório do usuário
-KUBECONFIG_PATH="$HOME/.kube/microk8s-config"
-microk8s config > "$KUBECONFIG_PATH" 2>/dev/null || {
-    # Fallback para diretório atual se $HOME não funcionar
-    KUBECONFIG_PATH="./microk8s-config"
-    log_info "Usando diretório atual como fallback..."
-    microk8s config > "$KUBECONFIG_PATH"
-}
+HOME_DIR=$(eval echo ~$CURRENT_USER)
+KUBECONFIG_DIR="$HOME_DIR/.kube"
+KUBECONFIG_PATH="$KUBECONFIG_DIR/microk8s-config"
 
-# Ajustar permissões se possível
-chmod 600 "$KUBECONFIG_PATH" 2>/dev/null || true
-chown $(logname):$(logname) "$KUBECONFIG_PATH" 2>/dev/null || true
+mkdir -p "$KUBECONFIG_DIR" || log_warning "Não foi possível criar o diretório $KUBECONFIG_DIR. Verifique as permissões."
 
-log_info "Kubeconfig salvo em: $KUBECONFIG_PATH"
-log_info "Para usar kubectl externamente: export KUBECONFIG=$KUBECONFIG_PATH"
+if microk8s config > "$KUBECONFIG_PATH"; then
+    chown "$CURRENT_USER":"$CURRENT_USER" "$KUBECONFIG_PATH" || log_warning "Não foi possível alterar o proprietário de $KUBECONFIG_PATH."
+    chmod 600 "$KUBECONFIG_PATH" || log_warning "Não foi possível alterar as permissões de $KUBECONFIG_PATH."
+    log_info "Kubeconfig para acesso externo salvo em: $KUBECONFIG_PATH"
+    log_info "Para usar kubectl externamente: export KUBECONFIG=$KUBECONFIG_PATH"
+else
+    log_error "Falha ao gerar kubeconfig para acesso externo."
+fi
 
 # 13. Informações finais
 log_success "=== Configuração dos Addons Concluída ==="

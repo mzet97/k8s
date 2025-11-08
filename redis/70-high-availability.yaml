@@ -8,7 +8,7 @@ spec:
   minAvailable: 1
   selector:
     matchLabels:
-      app: redis-master
+      app: redis-cluster
       role: master
 ---
 # PodDisruptionBudget para Redis Réplicas
@@ -21,7 +21,7 @@ spec:
   minAvailable: 2
   selector:
     matchLabels:
-      app: redis-replica
+      app: redis-cluster
       role: replica
 ---
 # NetworkPolicy para Redis - Permitir tráfego interno
@@ -33,7 +33,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app: redis-master
+      app: redis-cluster
   policyTypes:
   - Ingress
   - Egress
@@ -42,10 +42,8 @@ spec:
   - from:
     - podSelector:
         matchLabels:
-          app: redis-replica
+          app: redis-cluster
     ports:
-    - protocol: TCP
-      port: 6379
     - protocol: TCP
       port: 6380
   # Permitir tráfego de exporters

@@ -27,20 +27,10 @@ data:
         timeout client 50000ms
         timeout server 50000ms
 
-    # Frontend para conexões externas (sem TLS) - Master para escrita
-    frontend redis_frontend
-        bind *:6379
-        default_backend redis_backend
-
     # Frontend para conexões externas com TLS - Master para escrita
     frontend redis_tls_frontend
         bind *:6380 ssl crt /etc/ssl/certs/redis-proxy.pem ssl-min-ver TLSv1.2
         default_backend redis_backend
-
-    # Frontend para leitura com balanceamento entre réplicas
-    frontend redis_read_frontend
-        bind *:6381
-        default_backend redis_replica_backend
 
     # Frontend para leitura com TLS e balanceamento entre réplicas
     frontend redis_read_tls_frontend
@@ -54,14 +44,14 @@ data:
         stats enable
         stats uri /stats
         stats refresh 10s
-        stats auth admin:admin123
+        stats auth admin:$(HAPROXY_STATS_PASSWORD)
 
     # Backend conectando ao Redis Master com TLS
     backend redis_backend
         balance roundrobin
         option tcp-check
         tcp-check connect ssl
-        tcp-check send "AUTH Admin@123\r\n"
+        tcp-check send "AUTH $(REDIS_PASSWORD)\r\n"
         tcp-check expect string +OK
         tcp-check send "PING\r\n"
         tcp-check expect string +PONG
@@ -72,7 +62,7 @@ data:
         balance roundrobin
         option tcp-check
         tcp-check connect ssl
-        tcp-check send "AUTH Admin@123\r\n"
+        tcp-check send "AUTH $(REDIS_PASSWORD)\r\n"
         tcp-check expect string +OK
         tcp-check send "PING\r\n"
         tcp-check expect string +PONG
@@ -80,90 +70,23 @@ data:
         server redis-replica-1 redis-replica-1.redis-replica-headless.redis.svc.cluster.local:6380 check ssl verify none
         server redis-replica-2 redis-replica-2.redis-replica-headless.redis.svc.cluster.local:6380 check ssl verify none
 
+
+
 ---
-# Job para gerar certificado auto-assinado
-apiVersion: batch/v1
-kind: Job
+apiVersion: cert-manager.io/v1
+kind: Certificate
 metadata:
-  name: redis-proxy-cert-generator
+  name: redis-proxy-tls
   namespace: redis
 spec:
-  template:
-    spec:
-      restartPolicy: OnFailure
-      containers:
-      - name: cert-generator
-        image: alpine/openssl:latest
-        command:
-        - /bin/sh
-        - -c
-        - |
-          set -e
-          apk add --no-cache curl ca-certificates
-          update-ca-certificates
-          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-          chmod +x kubectl
-          mv kubectl /usr/local/bin/
-          
-          # Gerar chave privada
-          openssl genrsa -out /tmp/tls.key 2048
-          
-          # Gerar certificado auto-assinado
-          openssl req -new -x509 -key /tmp/tls.key -out /tmp/tls.crt -days 365 -subj "/CN=redis-proxy.redis.svc.cluster.local/O=Redis Proxy"
-          
-          # Combinar certificado e chave para HAProxy
-          cat /tmp/tls.crt /tmp/tls.key > /tmp/redis-proxy.pem
-          
-          # Criar secret com os certificados
-          kubectl create secret generic redis-proxy-tls \
-            --from-file=tls.crt=/tmp/tls.crt \
-            --from-file=tls.key=/tmp/tls.key \
-            --from-file=redis-proxy.pem=/tmp/redis-proxy.pem \
-            --namespace=redis --dry-run=client -o yaml | kubectl apply -f -
-        volumeMounts:
-        - name: kubectl-config
-          mountPath: /root/.kube
-      volumes:
-      - name: kubectl-config
-        emptyDir: {}
-      serviceAccountName: redis-proxy-sa
-
----
-# ServiceAccount para o job de geração de certificados
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: redis-proxy-sa
-  namespace: redis
-
----
-# ClusterRole para permitir criação de secrets
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  namespace: redis
-  name: redis-proxy-role
-rules:
-- apiGroups: [""]
-  resources: ["secrets"]
-  verbs: ["create", "update", "patch", "get"]
-
----
-# RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: redis-proxy-rolebinding
-  namespace: redis
-subjects:
-- kind: ServiceAccount
-  name: redis-proxy-sa
-  namespace: redis
-roleRef:
-  kind: Role
-  name: redis-proxy-role
-  apiGroup: rbac.authorization.k8s.io
-
+  secretName: redis-proxy-tls
+  dnsNames:
+  - redis-proxy.redis.svc.cluster.local
+  - redis.home.arpa
+  - redis-proxy.home.arpa
+  issuerRef:
+    kind: ClusterIssuer
+    name: local-ca
 ---
 # Deployment do HAProxy
 apiVersion: apps/v1
@@ -186,6 +109,17 @@ spec:
       containers:
       - name: haproxy
         image: haproxy:2.8-alpine
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-auth
+              key: REDIS_PASSWORD
+        - name: HAPROXY_STATS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: haproxy-stats-auth
+              key: HAPROXY_STATS_PASSWORD
         ports:
         - containerPort: 6379
           name: redis
@@ -206,7 +140,7 @@ spec:
             port: 8404
             httpHeaders:
             - name: Authorization
-              value: "Basic YWRtaW46YWRtaW4xMjM="
+              value: "Basic YWRtaW46$(echo -n admin:$(HAPROXY_STATS_PASSWORD) | base64 -w0)"
           initialDelaySeconds: 30
           periodSeconds: 10
           timeoutSeconds: 5
@@ -243,18 +177,10 @@ metadata:
 spec:
   type: NodePort
   ports:
-  - port: 6379
-    targetPort: 6379
-    nodePort: 30379
-    name: redis
   - port: 6380
     targetPort: 6380
     nodePort: 30380
     name: redis-tls
-  - port: 6381
-    targetPort: 6381
-    nodePort: 30381
-    name: redis-read
   - port: 6382
     targetPort: 6382
     nodePort: 30382

@@ -45,7 +45,7 @@ microk8s enable cert-manager
    kubectl apply -f 00-namespace.yaml
    
    # Instalar ArgoCD (kustomize oficial)
-   kubectl apply -k .
+   kubectl apply -f 01-install-kustomization.yaml
    
    # Aplicar configurações customizadas
    kubectl apply -f 10-argocd-cm-url.yaml

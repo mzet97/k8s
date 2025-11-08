@@ -30,7 +30,7 @@ data:
         sync_dir: /data/mimir/tsdb-sync
       tsdb:
         dir: /data/mimir/tsdb
-        retention_period: 24h
+        retention_period: 90d
     
     compactor:
       data_dir: /data/mimir/compactor
@@ -193,7 +193,7 @@ spec:
       spec:
         accessModes:
           - ReadWriteOnce
-        storageClassName: microk8s-hostpath
+        storageClassName: microk8s-strict
         resources:
           requests:
             storage: 50Gi
