@@ -1,0 +1,12 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: elasticsearch-tls
+  namespace: elk
+spec:
+  secretName: elasticsearch-tls
+  issuerRef:
+    name: local-ca
+    kind: ClusterIssuer
+  dnsNames:
+    - elasticsearch.home.arpa

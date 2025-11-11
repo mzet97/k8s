@@ -1,2 +1,0 @@
-sudo: 3 incorrect password attempts
-nts "rabbitmq" not found

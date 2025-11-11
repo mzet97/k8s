@@ -1,2 +1,0 @@
-NAME         READY   STATUS                            RESTARTS   AGE   IP             NODE   NOMINATED NODE   READINESS GATES
-rabbitmq-0   0/1     Init:CreateContainerConfigError   0          89s   10.1.166.195   k8s1   <none>           <none>

@@ -1,0 +1,35 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: elk-network-policy
+  namespace: elk
+  labels:
+    app.kubernetes.io/name: elk
+    app.kubernetes.io/component: security
+spec:
+  podSelector:
+    matchLabels: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - ipBlock:
+            cidr: 10.0.0.0/8
+        - ipBlock:
+            cidr: 172.16.0.0/12
+        - ipBlock:
+            cidr: 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 9200
+        - protocol: TCP
+          port: 9300
+        - protocol: TCP
+          port: 5601
+        - protocol: TCP
+          port: 5044
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0

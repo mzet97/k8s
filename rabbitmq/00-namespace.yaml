@@ -6,6 +6,7 @@ metadata:
     app.kubernetes.io/name: rabbitmq
     app.kubernetes.io/component: messaging
     app.kubernetes.io/part-of: infrastructure
+    name: rabbitmq
   annotations:
     scheduler.alpha.kubernetes.io/node-selector: ""
 ---

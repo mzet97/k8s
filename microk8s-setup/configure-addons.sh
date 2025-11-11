@@ -43,6 +43,24 @@ microk8s status --wait-ready --timeout=60
 
 log_info "=== Configurando Addons do MicroK8s ==="
 
+# Aguardar nós prontos e CNI saudável
+log_info "Verificando nós e CNI..."
+microk8s kubectl wait --for=condition=Ready node --all --timeout=120s || log_warning "Nem todos os nós estão prontos ainda."
+
+# Detectar e aguardar CNI (Calico/Flannel/Cilium)
+if microk8s kubectl get pods -n kube-system -l k8s-app=calico-node >/dev/null 2>&1; then
+    log_info "Calico detectado; aguardando calico-node ficar pronto..."
+    microk8s kubectl wait --for=condition=Ready pod -l k8s-app=calico-node -n kube-system --timeout=180s || log_warning "calico-node pode não estar totalmente pronto."
+elif microk8s kubectl get ds -n kube-system kube-flannel-ds >/dev/null 2>&1; then
+    log_info "Flannel detectado; aguardando kube-flannel-ds ficar disponível..."
+    microk8s kubectl rollout status ds/kube-flannel-ds -n kube-system --timeout=180s || log_warning "flannel pode não estar totalmente pronto."
+elif microk8s kubectl get pods -n kube-system -l k8s-app=cilium >/dev/null 2>&1; then
+    log_info "Cilium detectado; aguardando pods do cilium..."
+    microk8s kubectl wait --for=condition=Ready pod -l k8s-app=cilium -n kube-system --timeout=180s || log_warning "cilium pode não estar totalmente pronto."
+else
+    log_warning "Não foi possível detectar explicitamente o CNI (Calico/Flannel/Cilium). Continuando."
+fi
+
 # 1. Habilitar DNS
 log_info "1. Habilitando DNS..."
 microk8s enable dns
@@ -67,6 +85,14 @@ log_success "Ingress NGINX habilitado"
 
 log_info "Aguardando Ingress Controller estar pronto..."
 microk8s kubectl wait --for=condition=ready pod -l app.kubernetes.io/component=controller -n ingress --timeout=120s || log_warning "Ingress Controller pode não estar totalmente pronto, mas continuando..."
+
+# Verificar kube-proxy (importante para regras de rede)
+log_info "Verificando kube-proxy..."
+if microk8s kubectl get ds -n kube-system kube-proxy >/dev/null 2>&1; then
+    microk8s kubectl rollout status ds/kube-proxy -n kube-system --timeout=120s || log_warning "kube-proxy pode não estar totalmente pronto."
+else
+    log_warning "DaemonSet kube-proxy não encontrado (pode estar em modo alternativo)."
+fi
 
 # 4. Habilitar Helm
 log_info "4. Habilitando Helm..."

@@ -139,8 +139,16 @@ done
 echo "🔥 Limpando regras de iptables..."
 sudo iptables -t nat -F || true
 sudo iptables -t mangle -F || true
+sudo iptables -t raw -F || true
 sudo iptables -F || true
 sudo iptables -X || true
+
+# Limpar regras IPv6 (se aplicável)
+sudo ip6tables -t nat -F 2>/dev/null || true
+sudo ip6tables -t mangle -F 2>/dev/null || true
+sudo ip6tables -t raw -F 2>/dev/null || true
+sudo ip6tables -F 2>/dev/null || true
+sudo ip6tables -X 2>/dev/null || true
 
 # 6. Limpar processos residuais
 echo "🔄 Verificando processos residuais..."
@@ -153,10 +161,18 @@ fi
 # 7. Limpar montagens
 echo "💾 Verificando montagens..."
 mounts=$(mount | grep microk8s | awk '{print $3}' || true)
-for mount_point in $mount_points; do
+for mount_point in $mounts; do
     if [ -n "$mount_point" ]; then
         echo "  Desmontando: $mount_point"
         sudo umount "$mount_point" 2>/dev/null || true
+    fi
+done
+
+# Remover diretórios de CNI (impacta outras instalações, use com cautela)
+for cni_dir in "/var/lib/cni" "/etc/cni" "/opt/cni/bin"; do
+    if [ -d "$cni_dir" ]; then
+        echo "  Removendo diretório CNI: $cni_dir"
+        sudo rm -rf "$cni_dir" 2>/dev/null || true
     fi
 done
 

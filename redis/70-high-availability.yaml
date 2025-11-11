@@ -79,6 +79,19 @@ spec:
       port: 6379
     - protocol: TCP
       port: 6380
+  # Permitir acesso externo via NodePort a partir da rede doméstica
+  - from:
+    - ipBlock:
+        cidr: 192.168.0.0/16
+    - ipBlock:
+        cidr: 172.16.0.0/12
+    - ipBlock:
+        cidr: 10.0.0.0/8
+    ports:
+    - protocol: TCP
+      port: 6379
+    - protocol: TCP
+      port: 6380
   egress:
   # Permitir DNS
   - to: []
@@ -102,7 +115,8 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app: redis-replica
+      app: redis-cluster
+      role: replica
   policyTypes:
   - Ingress
   - Egress
@@ -127,12 +141,26 @@ spec:
       port: 6379
     - protocol: TCP
       port: 6380
+  # Permitir acesso externo via NodePort a partir da rede doméstica
+  - from:
+    - ipBlock:
+        cidr: 192.168.0.0/16
+    - ipBlock:
+        cidr: 172.16.0.0/12
+    - ipBlock:
+        cidr: 10.0.0.0/8
+    ports:
+    - protocol: TCP
+      port: 6379
+    - protocol: TCP
+      port: 6380
   egress:
   # Permitir comunicação com master
   - to:
     - podSelector:
         matchLabels:
-          app: redis-master
+          app: redis-cluster
+          role: master
     ports:
     - protocol: TCP
       port: 6379

@@ -1,1 +1,0 @@
-Error from server (NotFound): endpoints "rabbitmq-management" not found

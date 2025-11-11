@@ -31,6 +31,85 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Preparar requisitos de rede (sysctl, módulos, iptables, UFW)
+prepare_network_prereqs() {
+    log_info "Preparando requisitos de rede (sysctl, módulos, iptables, UFW)..."
+
+    # Carregar módulos necessários
+    if ! lsmod | grep -q br_netfilter; then
+        modprobe br_netfilter 2>/dev/null || log_warning "Não foi possível carregar módulo br_netfilter (verifique kernel)."
+    fi
+    if ! lsmod | grep -q overlay; then
+        modprobe overlay 2>/dev/null || true
+    fi
+
+    # Configurar parâmetros sysctl necessários para Kubernetes/CNI
+    SYSCTL_FILE="/etc/sysctl.d/99-kubernetes-network.conf"
+    {
+        echo "net.bridge.bridge-nf-call-iptables=1"
+        echo "net.bridge.bridge-nf-call-ip6tables=1"
+        echo "net.ipv4.ip_forward=1"
+    } > "$SYSCTL_FILE" 2>/dev/null || log_warning "Falha ao escrever $SYSCTL_FILE"
+
+    sysctl -w net.bridge.bridge-nf-call-iptables=1 >/dev/null 2>&1 || true
+    sysctl -w net.bridge.bridge-nf-call-ip6tables=1 >/dev/null 2>&1 || true
+    sysctl -w net.ipv4.ip_forward=1 >/dev/null 2>&1 || true
+    sysctl --system >/dev/null 2>&1 || true
+
+    # Verificar backend do iptables (nft vs legacy) e tentar ajustar para legacy se necessário
+    IPTABLES_VER=$(iptables -V 2>/dev/null || echo "")
+    if echo "$IPTABLES_VER" | grep -qi "nf_tables"; then
+        log_warning "iptables está usando backend nft. Alguns ambientes MicroK8s funcionam melhor com legacy. Tentando ajustar..."
+        if command -v update-alternatives >/dev/null 2>&1; then
+            update-alternatives --set iptables /usr/sbin/iptables-legacy 2>/dev/null || true
+            update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy 2>/dev/null || true
+            update-alternatives --set arptables /usr/sbin/arptables-legacy 2>/dev/null || true
+            update-alternatives --set ebtables /usr/sbin/ebtables-legacy 2>/dev/null || true
+            IPTABLES_VER=$(iptables -V 2>/dev/null || echo "")
+            if echo "$IPTABLES_VER" | grep -qi "legacy"; then
+                log_success "Backend do iptables ajustado para legacy."
+            else
+                log_warning "Não foi possível confirmar backend legacy do iptables. Continue com atenção."
+            fi
+        else
+            log_warning "update-alternatives não disponível para ajustar iptables."
+        fi
+    else
+        log_info "iptables não indica nft; mantendo configuração atual."
+    fi
+
+    # Ajustes de UFW (se instalado/ativo)
+    if command -v ufw >/dev/null 2>&1; then
+        UFW_STATUS=$(ufw status 2>/dev/null | head -n1 | awk '{print tolower($2)}')
+        if [ "$UFW_STATUS" = "active" ]; then
+            log_info "UFW está ativo; aplicando regras para MicroK8s."
+            # Garantir política de encaminhamento ACCEPT
+            if [ -f "/etc/default/ufw" ]; then
+                sed -i 's/^DEFAULT_FORWARD_POLICY=.*/DEFAULT_FORWARD_POLICY="ACCEPT"/' /etc/default/ufw || true
+            fi
+            # Permitir portas essenciais
+            ufw allow 6443/tcp >/dev/null 2>&1 || true   # API Server
+            ufw allow 10250/tcp >/dev/null 2>&1 || true  # Kubelet
+            ufw allow 80/tcp    >/dev/null 2>&1 || true  # Ingress HTTP
+            ufw allow 443/tcp   >/dev/null 2>&1 || true  # Ingress HTTPS
+            ufw allow 30000:32767/tcp >/dev/null 2>&1 || true # NodePort TCP
+            ufw allow 30000:32767/udp >/dev/null 2>&1 || true # NodePort UDP
+            # Recarregar UFW para aplicar alterações
+            ufw reload >/dev/null 2>&1 || true
+            log_success "Regras UFW para MicroK8s aplicadas."
+        else
+            log_info "UFW não está ativo; sem ajustes necessários."
+        fi
+    fi
+
+    # Verificação rápida de interfaces de rede do CNI
+    if ip link show cni0 >/dev/null 2>&1; then
+        log_info "Interface CNI (cni0) já presente."
+    else
+        log_info "Interface CNI (cni0) ainda não presente; será criada após inicialização do cluster."
+    fi
+}
+
 # Verificar se é root
 if [ "$EUID" -ne 0 ]; then
     log_error "Este script deve ser executado como root (sudo)"
@@ -61,6 +140,9 @@ apt-get install -y \
     htop \
     net-tools \
     snapd
+
+# Preparar requisitos de rede antes de instalar o MicroK8s
+prepare_network_prereqs
 
 # Verificar se snap está funcionando
 log_info "Verificando snap..."

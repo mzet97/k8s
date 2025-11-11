@@ -1,1 +1,0 @@
-configmap/rabbitmq-config unchanged

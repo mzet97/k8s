@@ -1,2 +1,0 @@
-NAME       ENDPOINTS   AGE
-rabbitmq   <none>      5m9s

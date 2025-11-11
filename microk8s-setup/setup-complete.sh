@@ -89,7 +89,8 @@ print_step "ETAPA 1/4: Instalando MicroK8s..."
 echo "Executando: $SCRIPT_DIR/install-microk8s.sh"
 echo
 
-if bash "$SCRIPT_DIR/install-microk8s.sh"; then
+# Executar instalação com privilégios (script requer root)
+if sudo bash "$SCRIPT_DIR/install-microk8s.sh"; then
     print_status 0 "MicroK8s instalado com sucesso"
 else
     print_status 1 "Falha na instalação do MicroK8s"
@@ -122,8 +123,8 @@ print_info "Aguardando todos os pods ficarem prontos (pode levar alguns minutos)
 
 # Aguardar até 5 minutos para todos os pods ficarem prontos
 for i in {1..150}; do
-    NOT_READY=$(kubectl get pods -A --no-headers 2>/dev/null | grep -v Running | grep -v Completed | wc -l)
-    if [ $NOT_READY -eq 0 ]; then
+    NOT_READY=$(microk8s kubectl get pods -A --no-headers 2>/dev/null | grep -v Running | grep -v Completed | wc -l)
+    if [ "$NOT_READY" -eq 0 ]; then
         break
     fi
     echo -n "."

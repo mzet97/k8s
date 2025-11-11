@@ -1,2 +1,0 @@
-NAME   STATUS   ROLES    AGE   VERSION    INTERNAL-IP     EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION     CONTAINER-RUNTIME
-k8s1   Ready    <none>   10m   v1.28.15   192.168.31.51   <none>        Ubuntu 24.04.3 LTS   6.8.0-79-generic   containerd://1.6.28

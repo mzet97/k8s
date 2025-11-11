@@ -251,6 +251,85 @@ kubectl logs -n ingress daemonset/nginx-ingress-microk8s-controller
 
 ### Atualização do MicroK8s
 
+## 🌐 Troubleshooting de Rede (CNI/Ingress)
+
+### Sintomas frequentes
+- Pods não conseguem resolver `kubernetes.default.svc.cluster.local`
+- Serviços `ClusterIP` não acessíveis entre pods
+- `Ingress` responde 404/timeout mesmo com serviço saudável
+- `NodePort` inacessível de fora do nó
+
+### Causas prováveis
+- `sysctl` não habilitado para `bridge-nf-call-iptables` e `ip_forward`
+- `iptables` em modo `nft` com regras não compatíveis com kube-proxy
+- `UFW` ativo bloqueando `FORWARD` ou portas essenciais
+- CNI (Calico/Flannel/Cilium) não inicializado corretamente
+
+### Verificações rápidas
+```bash
+# Verificar sysctl
+sudo sysctl net.bridge.bridge-nf-call-iptables net.bridge.bridge-nf-call-ip6tables net.ipv4.ip_forward
+
+# Verificar backend do iptables
+sudo iptables -V
+
+# Verificar UFW
+sudo ufw status
+grep DEFAULT_FORWARD_POLICY /etc/default/ufw
+
+# Verificar CNI
+ip link show cni0 || echo "cni0 ausente"
+kubectl -n kube-system get ds kube-proxy || true
+kubectl -n kube-system get pods -l k8s-app=calico-node || true
+kubectl -n kube-system get ds kube-flannel-ds || true
+kubectl -n kube-system get pods -l k8s-app=cilium || true
+```
+
+### Correções recomendadas
+```bash
+# 1) Ajustar sysctl
+echo -e "net.bridge.bridge-nf-call-iptables=1\nnet.bridge.bridge-nf-call-ip6tables=1\nnet.ipv4.ip_forward=1" | sudo tee /etc/sysctl.d/99-kubernetes-network.conf
+sudo sysctl --system
+
+# 2) Ajustar iptables para legacy (se nft causar problemas)
+sudo update-alternatives --set iptables /usr/sbin/iptables-legacy
+sudo update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy
+sudo update-alternatives --set arptables /usr/sbin/arptables-legacy
+sudo update-alternatives --set ebtables /usr/sbin/ebtables-legacy
+
+# 3) Ajustar UFW (se ativo)
+sudo sed -i 's/^DEFAULT_FORWARD_POLICY=.*/DEFAULT_FORWARD_POLICY="ACCEPT"/' /etc/default/ufw
+sudo ufw allow 6443/tcp
+sudo ufw allow 10250/tcp
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw allow 30000:32767/tcp
+sudo ufw allow 30000:32767/udp
+sudo ufw reload
+
+# 4) Reiniciar componentes
+sudo snap restart microk8s
+kubectl -n kube-system rollout restart ds/kube-proxy || true
+```
+
+### Testes de saúde
+```bash
+# DNS interno
+kubectl run dns-test --image=busybox --rm -it --restart=Never -- nslookup kubernetes.default.svc.cluster.local
+
+# Acesso Service via ClusterIP a partir de outro pod
+kubectl run curl --image=radial/busyboxplus:curl -it --rm --restart=Never -- curl -sS http://<service_cluster_ip>:<port>
+
+# Ingress
+kubectl -n ingress logs -l app.kubernetes.io/component=controller --tail=100
+kubectl get ingress -A
+```
+
+### Observações
+- Em ambientes modernos, `iptables-nft` costuma funcionar, mas problemas de compatibilidade podem ocorrer. Use `legacy` se notar falhas de roteamento.
+- Se usar `UFW`, garanta que o `FORWARD` esteja `ACCEPT` ou considere desabilitar temporariamente para diagnóstico.
+- Após uma remoção completa (`uninstall-microk8s.sh`), reinicie o host antes de reinstalar para limpar interfaces residuais.
+
 ```bash
 # Atualizar para a versão mais recente
 sudo snap refresh microk8s

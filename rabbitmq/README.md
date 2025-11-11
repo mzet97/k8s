@@ -1,24 +1,145 @@
-# RabbitMQ Kubernetes Deployment
+# RabbitMQ no Kubernetes (Homelab)
 
-A comprehensive, production-ready RabbitMQ deployment for Kubernetes homelab environments with high availability, monitoring, backup, and security features.
+Implantação funcional e simplificada do RabbitMQ em Kubernetes, alinhada ao padrão usado no Redis: foco em HA básico, acesso via NodePort e políticas de rede controladas para a LAN.
 
-## 🚀 Quick Start
+## 🚀 Visão Rápida
+
+- Namespace: `rabbitmq` com label `name=rabbitmq`.
+- StatefulSet: `rabbitmq` com 3 réplicas e peer discovery via Kubernetes.
+- Services:
+  - `rabbitmq` (`ClusterIP`) portas `5672`, `5671`, `15672`, `15671`, `15692`, `15691`.
+  - `rabbitmq-headless` (headless) para cluster, mesmas portas de broker e internó.
+  - `rabbitmq-nodeport` (`NodePort`) expõe `5672`→`30672`, `5671`→`30671`, `15672`→`31672`, `15671`→`31671`.
+- NetworkPolicy: acesso permitido da LAN (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`) para AMQP e Management.
+- TLS: desabilitado no homelab (ConfigMap define sem SSL); habilitável depois.
+
+Credenciais padrão (laboratório):
+- Admin: `admin` / `Admin@123` (Secret `rabbitmq-admin`).
+- App: `appuser` / `Admin@123` (Secret `rabbitmq-app`).
+
+## 📦 Manifests Principais
+
+- `00-namespace.yaml`: cria `rabbitmq` com labels e quotas/limits.
+- `01-secret.yaml`: credenciais admin/app/monitoring.
+- `10-configmap.yaml`: `rabbitmq.conf` com peer discovery e métricas.
+- `11-headless-svc.yaml`: serviço headless para formar cluster.
+- `12-client-svc.yaml`: serviço interno para clientes.
+- `13-management-svc.yaml`: serviço interno para UI (ClusterIP).
+- `14-nodeport-svc.yaml`: expõe AMQP e Management para a LAN.
+- `40-network-policy.yaml`: regras de entrada/saída alinhadas ao homelab.
+- `41-pod-disruption-budget.yaml`: disponibilidade mínima.
+- `60-monitoring.yaml`, `61-prometheus-rules.yaml`: métricas e alertas (opcional).
+
+## 🛠️ Instalação
 
 ```bash
-# Clone or navigate to the rabbitmq directory
 cd /home/k8s1/k8s/rabbitmq
 
-# Install RabbitMQ cluster
-./install-rabbitmq.sh install
+# Namespace, RBAC e segredos
+kubectl apply -f 00-namespace.yaml
+kubectl apply -f 03-rbac.yaml
+kubectl apply -f 01-secret.yaml
 
-# Test the installation
-./test-rabbitmq.sh all
+# Configuração e serviços
+kubectl apply -f 10-configmap.yaml
+kubectl apply -f 11-headless-svc.yaml
+kubectl apply -f 12-client-svc.yaml
+kubectl apply -f 13-management-svc.yaml
+kubectl apply -f 14-nodeport-svc.yaml
 
-# Access management UI
-kubectl port-forward -n rabbitmq svc/rabbitmq 15672:15672
-# Open browser: http://localhost:15672
-# Default credentials: admin / rabbitmq123
+# (Opcional) Ingress para UI com TLS
+kubectl apply -f 02-tls-certificates.yaml || true
+kubectl apply -f 30-management-ingress.yaml
+
+# StatefulSet
+kubectl apply -f 20-statefulset.yaml
+
+# NetworkPolicy e (opcional) monitoramento
+kubectl apply -f 40-network-policy.yaml
+kubectl apply -f 60-monitoring.yaml || true
+kubectl apply -f 61-prometheus-rules.yaml || true
 ```
+
+Verifique:
+
+```bash
+kubectl get pods -n rabbitmq -o wide
+kubectl get svc -n rabbitmq
+kubectl get ep -n rabbitmq
+kubectl describe netpol -n rabbitmq rabbitmq-network-policy
+```
+
+## 🔌 Testes
+
+Interno (no cluster):
+- AMQP: `amqp://admin:Admin@123@rabbitmq.rabbitmq.svc.cluster.local:5672/`
+- Management: `http://rabbitmq.rabbitmq.svc.cluster.local:15672/`
+
+Externo (LAN via NodePort):
+- AMQP: `amqp://admin:Admin@123@<NODE_IP>:30672/`
+- Management: `http://<NODE_IP>:31672/`
+
+Externo (DNS via Ingress):
+- UI: `https://rabbitmq-mgmt.home.arpa` (TLS; login `admin` / `Admin@123`).
+
+Passos rápidos:
+
+```bash
+# Mapear DNS local (se não tiver DNS interno)
+NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+echo "$NODE_IP rabbitmq-mgmt.home.arpa" | sudo tee -a /etc/hosts
+
+# Validar resposta TLS do Ingress
+curl -Ik --resolve rabbitmq-mgmt.home.arpa:443:$NODE_IP https://rabbitmq-mgmt.home.arpa/
+```
+
+Exemplos rápidos:
+
+```bash
+# Management UI via NodePort
+curl -I http://<NODE_IP>:31672
+
+# Checar cluster
+kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmqctl cluster_status
+
+# Listar filas
+kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmqctl list_queues name messages
+```
+
+## 🔧 Troubleshooting
+
+- Verifique eventos e logs:
+  - `kubectl describe pod -n rabbitmq rabbitmq-0`
+  - `kubectl logs -n rabbitmq rabbitmq-0`
+- Cheque endpoints e DNS:
+  - `kubectl get ep -n rabbitmq rabbitmq-headless`
+  - `kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmq-diagnostics ping`
+- NetworkPolicy: ajuste `ipBlock` conforme sua LAN.
+- TLS: inicialmente desabilitado; para habilitar, crie o Secret TLS e ajuste `rabbitmq.conf` com listeners SSL (`5671`) e caminhos de certs.
+
+## 🧹 Limpeza
+
+```bash
+kubectl delete -f 20-statefulset.yaml
+kubectl delete -f 14-nodeport-svc.yaml -f 13-management-svc.yaml -f 12-client-svc.yaml -f 11-headless-svc.yaml
+kubectl delete -f 30-management-ingress.yaml || true
+kubectl delete -f 10-configmap.yaml -f 03-rbac.yaml -f 01-secret.yaml
+# opcional
+kubectl delete -f 60-monitoring.yaml -f 61-prometheus-rules.yaml
+kubectl delete -f 02-tls-certificates.yaml || true
+kubectl delete namespace rabbitmq
+```
+
+## ℹ️ Notas Importantes
+
+- Senhas padrão são apenas para laboratório. Altere antes de uso real.
+- `emptyDir` é usado para dados e logs no homelab; para persistência, troque por PVCs.
+- Ingress para Management UI disponível em `rabbitmq-mgmt.home.arpa` e usa apenas o login da UI (sem Basic Auth do Nginx).
+- Os scripts de teste/backup foram removidos para reduzir complexidade; use `kubectl` e a UI.
+
+## 📄 Licença
+
+MIT.
 
 ## 📋 Table of Contents
 

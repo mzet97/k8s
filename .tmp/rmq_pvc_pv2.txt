@@ -1,3 +1,0 @@
-NAME                                    STATUS    VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS        AGE
-persistentvolumeclaim/data-rabbitmq-0   Pending                                      microk8s-hostpath   48s
-persistentvolumeclaim/logs-rabbitmq-0   Pending                                      microk8s-hostpath   48s

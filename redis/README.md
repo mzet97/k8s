@@ -1,87 +1,113 @@
-# Redis Master-Replica no Kubernetes
+# Redis Kubernetes (Master/Replica) com TLS e NodePort
 
-## 📋 Visão Geral
+Este diretório provisiona um cluster Redis com um pod mestre e três réplicas, com suporte a TLS em `6380`, acesso interno via `ClusterIP`, e acesso externo via `NodePort` (`30379` sem TLS e `30380` com TLS). As NetworkPolicies foram ajustadas para permitir acesso da rede interna e controlar tráfego entre master e réplicas.
 
-Este projeto implementa uma solução completa de Redis Master-Replica para Kubernetes/MicroK8s com:
+## Arquitetura
+- `StatefulSet` mestre: `21-master-statefulset.yaml` (labels `app=redis-cluster`, `role=master`)
+- `StatefulSet` réplicas: `22-replica-statefulset.yaml` (labels `app=redis-cluster`, `role=replica`, 3 réplicas)
+- `ConfigMap` de configuração: `10-configmap.yaml` (habilita `port 6379` e `tls-port 6380`, certificados em `/tls`)
+- `Secrets`:
+  - `01-secret.yaml`: senha Redis (`REDIS_PASSWORD`)
+  - `02-tls-certificates.yaml`: cert-manager gera `redis-tls-secret` com certs para master e réplicas
+- `Services`:
+  - `12-client-svc.yaml`: `ClusterIP` para `redis-tls:6380`
+  - `11-headless-svc.yaml`: headless para descobrir réplicas
+  - `13-master-svc.yaml`: `NodePort` para `6379:30379` e `6380:30380`, selector `app=redis-cluster, role=master`
+- `NetworkPolicies`: `70-high-availability.yaml`
+  - `redis-network-policy`: permite ingress entre pods Redis e acesso de faixas LAN privadas
+  - `redis-replica-network-policy`: restringe réplicas e permite egress para master
 
-- ✅ **Alta Disponibilidade** - Master + 3 Réplicas
-- ✅ **Segurança TLS** - Certificados automáticos
-- ✅ **Monitoramento** - Métricas e logs centralizados
-- ✅ **Backup Automático** - CronJobs configurados
-- ✅ **DNS Simplificado** - Configuração `home.arpa`
+Observação: o antigo `20-statefulset.yaml` foi removido por conflito com a arquitetura master/replica e falta de TLS consistente.
 
-## 🏛️ Arquitetura
+## Instalação
+```bash
+# Namespace e básicos
+kubectl apply -f redis/00-namespace.yaml
+kubectl apply -f redis/01-secret.yaml
+kubectl apply -f redis/03-rbac.yaml
 
-A arquitetura é composta pelos seguintes componentes:
+# TLS (cert-manager precisa estar instalado no cluster)
+kubectl apply -f redis/02-tls-certificates.yaml
+# Aguarde o secret ser criado: redis-tls-secret no namespace redis
 
-- **Master StatefulSet**: Garante que uma única instância do Redis Master esteja sempre em execução.
-- **Replica StatefulSet**: Gerencia 3 réplicas do Redis, garantindo alta disponibilidade para leitura.
-- **Services**:
-  - `redis-master`: Expõe o Redis Master internamente no cluster e externamente via NodePort.
-  - `redis-replica-headless`: Serviço headless para as réplicas, usado para descoberta.
-  - `redis-client`: Ponto de entrada para clientes, balanceando a carga entre master e réplicas.
-- **Certificados TLS**: Gerenciados automaticamente pelo `cert-manager` para garantir a comunicação segura.
-- **ConfigMaps e Secrets**: Armazenam as configurações do Redis e as credenciais de autenticação.
+# Configuração e serviços
+kubectl apply -f redis/10-configmap.yaml
+kubectl apply -f redis/11-headless-svc.yaml
+kubectl apply -f redis/12-client-svc.yaml
+kubectl apply -f redis/13-master-svc.yaml
 
-## 🚀 Instalação
+# StatefulSets
+kubectl apply -f redis/21-master-statefulset.yaml
+kubectl apply -f redis/22-replica-statefulset.yaml
 
-A instalação pode ser feita de forma automatizada ou manual.
+# Políticas de rede
+kubectl apply -f redis/70-high-availability.yaml
+```
 
-### 🤖 Scripts de Automação (Recomendado)
+## Execução Rápida
+- UI/Stats (opcional via Ingress): `http://redis-stats.home.arpa` se aplicado
+- Cliente interno: `redis-master.redis.svc.cluster.local:6379` (sem TLS) e `6380` (TLS)
+- NodePort externo: `30379` (sem TLS) e `30380` (TLS)
 
 ```bash
-# Instalação automática
-./install-redis.sh
+# Descobrir IP do nó
+NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
 
-# Remoção automática
-./remove-redis.sh
+# Teste rápido sem TLS
+redis-cli -h "$NODE_IP" -p 30379 -a Admin@123 ping
+
+# Mapear DNS e testar TLS
+echo "$NODE_IP redis.home.arpa" | sudo tee -a /etc/hosts
+redis-cli --tls --insecure -h redis.home.arpa -p 30380 -a Admin@123 ping
 ```
 
-### Comandos de Instalação Manual
+## Verificação
+- `kubectl -n redis get pods`
+- `kubectl -n redis get svc redis-master -o wide`
+- `kubectl -n redis get endpoints redis-master -o wide`
+- `kubectl -n redis get netpol`
 
+## Testes Internos (Cluster)
 ```bash
-# 1. Criar namespace e configurações básicas
-kubectl apply -f 00-namespace.yaml
-kubectl apply -f 01-secret.yaml
-kubectl apply -f 03-rbac.yaml
+# Sem TLS
+kubectl -n redis run -it redis-tester --image=redis:7-alpine --restart=Never -- sh -lc 'redis-cli -h redis-master -p 6379 -a Admin@123 ping'
 
-# 2. Configurar TLS e certificados
-kubectl apply -f 02-tls-certificates.yaml
-
-# 3. Configurar Redis (ConfigMaps e Services)
-kubectl apply -f 10-configmap.yaml
-kubectl apply -f 11-headless-svc.yaml
-kubectl apply -f 12-client-svc.yaml
-kubectl apply -f 13-master-svc.yaml
-
-# 4. Implantar Redis Master e Réplicas
-kubectl apply -f 21-master-statefulset.yaml
-kubectl apply -f 22-replica-statefulset.yaml
-
-# 5. Configurar acesso externo (NodePort)
-# (O serviço redis-master já está configurado para NodePort)
+# Com TLS (certs montados nos pods Redis; para tester usar "--insecure")
+kubectl -n redis run -it redis-tester-tls --image=redis:7-alpine --restart=Never -- sh -lc 'redis-cli --tls --insecure -h redis-master -p 6380 -a Admin@123 ping'
 ```
 
-## 🧪 Testes via Redis CLI
-
-### Configuração de DNS
-
-Adicione a seguinte entrada ao seu arquivo `/etc/hosts`:
-
-```
-<IP_DO_NÓ> redis.home.arpa
-```
-
-### Comandos de Teste
-
+## Testes Externos (NodePort)
 ```bash
-# Via NodePort direto (não-TLS)
-redis-cli -h <IP_DO_NÓ> -p 30379 -a Admin@123 ping
+NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
 
-# Via TLS direto
-redis-cli -h redis.home.arpa -p 30380 --tls --insecure -a Admin@123 ping
+# Sem TLS
+redis-cli -h "$NODE_IP" -p 30379 -a Admin@123 ping
+
+# Com TLS (usar seu DNS apontando para o IP do nó)
+echo "$NODE_IP redis.home.arpa" | sudo tee -a /etc/hosts
+redis-cli --tls --insecure -h redis.home.arpa -p 30380 -a Admin@123 ping
 ```
 
-## 📄 Licença
+## Troubleshooting
+- NodePort retorna "Connection refused":
+  - Verifique endpoints: `kubectl -n redis get endpoints redis-master`
+  - Confirme iptables NodePort: `sudo iptables -t nat -L KUBE-NODEPORTS -n | grep -E '30379|30380'`
+  - CNI/NetworkPolicy: aplique `70-high-availability.yaml` e confirme labels do namespace: `kubectl get ns redis -o jsonpath='{.metadata.labels}'`
+- TLS falha: valide que `redis-tls-secret` existe e que `tls-port 6380` está no `10-configmap.yaml`.
 
+## Senha Padrão
+- `Admin@123` (armazenada em `redis/01-secret.yaml`). Altere conforme necessidade.
+
+## Remoção
+```bash
+kubectl delete -f redis/22-replica-statefulset.yaml || true
+kubectl delete -f redis/21-master-statefulset.yaml || true
+kubectl delete -f redis/13-master-svc.yaml -f redis/12-client-svc.yaml -f redis/11-headless-svc.yaml || true
+kubectl delete -f redis/10-configmap.yaml -f redis/03-rbac.yaml -f redis/01-secret.yaml || true
+kubectl delete -f redis/02-tls-certificates.yaml || true
+kubectl delete -f redis/70-high-availability.yaml || true
+kubectl delete namespace redis
+```
+
+## Licença
 MIT License

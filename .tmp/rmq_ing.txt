@@ -1,2 +1,0 @@
-NAME                  CLASS   HOSTS                     ADDRESS   PORTS     AGE
-rabbitmq-management   nginx   rabbitmq-mgmt.home.arpa             80, 443   10s

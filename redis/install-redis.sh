@@ -9,26 +9,39 @@ set -e  # Parar execução em caso de erro
 echo "🚀 Iniciando instalação do Redis Master-Replica no Kubernetes..."
 echo ""
 
-# Verificar se microk8s está disponível
-if ! command -v microk8s &> /dev/null; then
-    echo "❌ Erro: microk8s não encontrado. Instale o MicroK8s primeiro."
+# Selecionar cliente Kubernetes (preferir kubectl se estiver funcional)
+KUBECTL_BIN="${KUBECTL_BIN:-}"
+if [ -z "$KUBECTL_BIN" ]; then
+    if command -v kubectl >/dev/null 2>&1; then
+        if kubectl get nodes --request-timeout=5s >/dev/null 2>&1; then
+            KUBECTL_BIN="kubectl"
+        fi
+    fi
+fi
+if [ -z "$KUBECTL_BIN" ] && command -v microk8s >/dev/null 2>&1; then
+    KUBECTL_BIN="microk8s kubectl"
+fi
+if [ -z "$KUBECTL_BIN" ]; then
+    echo "❌ Erro: nem 'kubectl' nem 'microk8s kubectl' encontrados/funcionais."
+    echo "Instale/configure 'kubectl' ou MicroK8s e recarregue as permissões (newgrp microk8s)."
     exit 1
 fi
+echo "ℹ️ Usando cliente Kubernetes: $KUBECTL_BIN"
 
 echo "📋 Pré-requisitos verificados"
 echo ""
 
 # 1. Criar namespace e configurações básicas
 echo "1️⃣ Criando namespace e configurações básicas..."
-microk8s kubectl apply -f 00-namespace.yaml
-microk8s kubectl apply -f 01-secret.yaml
-microk8s kubectl apply -f 03-rbac.yaml
+$KUBECTL_BIN apply -f 00-namespace.yaml
+$KUBECTL_BIN apply -f 01-secret.yaml
+$KUBECTL_BIN apply -f 03-rbac.yaml
 echo "✅ Namespace e configurações básicas criadas"
 echo ""
 
 # 2. Configurar TLS e certificados
 echo "2️⃣ Configurando TLS e certificados..."
-microk8s kubectl apply -f 02-tls-certificates.yaml
+$KUBECTL_BIN apply -f 02-tls-certificates.yaml
 echo "✅ Certificados TLS configurados"
 echo ""
 
@@ -38,7 +51,7 @@ echo "Verificando se o secret redis-tls-secret foi criado..."
 
 # Aguardar até 120 segundos pelos certificados
 for i in {1..24}; do
-    if microk8s kubectl get secret redis-tls-secret -n redis >/dev/null 2>&1; then
+    if $KUBECTL_BIN get secret redis-tls-secret -n redis >/dev/null 2>&1; then
         echo "✅ Secret redis-tls-secret criado com sucesso!"
         break
     fi
@@ -47,30 +60,29 @@ for i in {1..24}; do
 done
 
 # Verificar se o secret foi criado
-if ! microk8s kubectl get secret redis-tls-secret -n redis >/dev/null 2>&1; then
+if ! $KUBECTL_BIN get secret redis-tls-secret -n redis >/dev/null 2>&1; then
     echo "❌ Erro: Secret redis-tls-secret não foi criado após 120 segundos"
     echo "Verifique os logs do cert-manager:"
-    echo "microk8s kubectl logs -n cert-manager -l app=cert-manager"
+    echo "$KUBECTL_BIN logs -n cert-manager -l app=cert-manager"
     exit 1
 fi
 
-microk8s kubectl -n redis get certificates
+$KUBECTL_BIN -n redis get certificates
 echo ""
 
 # 3. Configurar Redis (ConfigMaps e Services)
 echo "3️⃣ Configurando Redis (ConfigMaps e Services)..."
-microk8s kubectl apply -f 10-configmap.yaml
-microk8s kubectl apply -f 11-headless-svc.yaml
-microk8s kubectl apply -f 12-client-svc.yaml
-microk8s kubectl apply -f 13-master-svc.yaml
+$KUBECTL_BIN apply -f 10-configmap.yaml
+$KUBECTL_BIN apply -f 11-headless-svc.yaml
+$KUBECTL_BIN apply -f 12-client-svc.yaml
+$KUBECTL_BIN apply -f 13-master-svc.yaml
 echo "✅ ConfigMaps e Services configurados"
 echo ""
 
 # 4. Implantar Redis Master e Réplicas
 echo "4️⃣ Implantando Redis Master e Réplicas..."
-microk8s kubectl apply -f 21-master-statefulset.yaml
-microk8s kubectl apply -f 22-replica-statefulset.yaml
-microk8s kubectl apply -f 31-ingress.yaml
+$KUBECTL_BIN apply -f 21-master-statefulset.yaml
+$KUBECTL_BIN apply -f 22-replica-statefulset.yaml
 echo "✅ Redis Master e Réplicas implantados"
 echo ""
 
@@ -80,8 +92,8 @@ echo "Verificando se os pods Redis Master e Replica estão funcionando..."
 
 # Aguardar até 180 segundos pelos pods
 for i in {1..36}; do
-    READY_PODS=$(microk8s kubectl get pods -n redis -l 'app in (redis-master,redis-replica)' --no-headers 2>/dev/null | grep -c "Running" 2>/dev/null || echo "0")
-    TOTAL_PODS=$(microk8s kubectl get pods -n redis -l 'app in (redis-master,redis-replica)' --no-headers 2>/dev/null | wc -l 2>/dev/null || echo "0")
+    READY_PODS=$($KUBECTL_BIN get pods -n redis -l 'app in (redis-master,redis-replica)' --no-headers 2>/dev/null | grep -c "Running" 2>/dev/null || echo "0")
+    TOTAL_PODS=$($KUBECTL_BIN get pods -n redis -l 'app in (redis-master,redis-replica)' --no-headers 2>/dev/null | wc -l 2>/dev/null || echo "0")
     
     # Remover quebras de linha e espaços extras
     READY_PODS=$(echo "$READY_PODS" | tr -d '\n\r' | xargs)
@@ -103,12 +115,12 @@ for i in {1..36}; do
     sleep 5
 done
 
-microk8s kubectl -n redis get pods
+$KUBECTL_BIN -n redis get pods
 echo ""
 
 # 5. Configurar replicação
 echo "5️⃣ Configurando replicação..."
-microk8s kubectl apply -f 31-replication-setup-job.yaml
+$KUBECTL_BIN apply -f 31-replication-setup-job.yaml
 echo "✅ Replicação configurada"
 echo ""
 
@@ -120,15 +132,15 @@ echo ""
 
 # 7. Configurar acesso externo
 echo "7️⃣ Configurando acesso externo..."
-microk8s kubectl apply -f 43-dns-config.yaml
+$KUBECTL_BIN apply -f 43-dns-config.yaml
 echo "✅ Acesso externo configurado"
 echo ""
 
 # 8. Configurar monitoramento e backup (opcional)
 echo "8️⃣ Configurando monitoramento e backup (opcional)..."
-microk8s kubectl apply -f 50-backup-cronjob.yaml
+$KUBECTL_BIN apply -f 50-backup-cronjob.yaml
 # microk8s kubectl apply -f 60-monitoring.yaml  # Temporariamente desativado
-microk8s kubectl apply -f 70-high-availability.yaml
+$KUBECTL_BIN apply -f 70-high-availability.yaml
 echo "✅ Monitoramento e backup configurados"
 echo ""
 
@@ -137,19 +149,19 @@ echo "🔍 Verificando instalação..."
 echo ""
 
 echo "📊 Status dos pods:"
-microk8s kubectl -n redis get pods
+$KUBECTL_BIN -n redis get pods
 echo ""
 
 echo "🌐 Serviços disponíveis:"
-microk8s kubectl -n redis get svc
+$KUBECTL_BIN -n redis get svc
 echo ""
 
 echo "🔐 Certificados TLS:"
-microk8s kubectl -n redis get certificates
+$KUBECTL_BIN -n redis get certificates
 echo ""
 
 # Obter IP do nó para configuração DNS
-NODE_IP=$(microk8s kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+NODE_IP=$($KUBECTL_BIN get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
 echo "📡 IP do nó Kubernetes: $NODE_IP"
 echo ""
 

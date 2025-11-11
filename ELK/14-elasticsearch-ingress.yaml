@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: elasticsearch-ingress
+  namespace: elk
+  labels:
+    app.kubernetes.io/name: elk
+    app.kubernetes.io/component: elasticsearch
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: local-ca
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: elasticsearch.home.arpa
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: elasticsearch
+                port:
+                  name: http
+  tls:
+    - hosts:
+        - elasticsearch.home.arpa
+      secretName: elasticsearch-tls

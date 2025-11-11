@@ -1,2 +1,0 @@
-NAME       READY   AGE   CONTAINERS   IMAGES
-rabbitmq   0/3     5s    rabbitmq     rabbitmq:3.12.12-management-alpine

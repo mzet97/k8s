@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/component: messaging
 spec:
   serviceName: rabbitmq-headless
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: rabbitmq
@@ -106,8 +106,6 @@ spec:
           value: "rabbitmq-headless"
         - name: RABBITMQ_ENABLED_PLUGINS_FILE
           value: "/etc/rabbitmq/enabled_plugins"
-        - name: RABBITMQ_CONFIG_FILE
-          value: "/etc/rabbitmq/rabbitmq.conf"
         - name: RABBITMQ_LOGS
           value: "-"
         - name: RABBITMQ_SASL_LOGS

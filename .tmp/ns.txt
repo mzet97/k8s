@@ -1,6 +1,0 @@
-NAME              STATUS   AGE
-default           Active   3m42s
-kube-node-lease   Active   3m42s
-kube-public       Active   3m43s
-kube-system       Active   3m43s
-rabbitmq          Active   3m33s
