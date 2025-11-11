@@ -1,0 +1,30 @@
+Name:                     rabbitmq-nodeport
+Namespace:                rabbitmq
+Labels:                   app.kubernetes.io/component=messaging
+                          app.kubernetes.io/name=rabbitmq
+Annotations:              <none>
+Selector:                 app.kubernetes.io/name=rabbitmq
+Type:                     NodePort
+IP Family Policy:         SingleStack
+IP Families:              IPv4
+IP:                       10.152.183.56
+IPs:                      10.152.183.56
+Port:                     amqp  5672/TCP
+TargetPort:               amqp/TCP
+NodePort:                 amqp  30672/TCP
+Endpoints:                10.1.166.196:5672,10.1.166.197:5672,10.1.166.198:5672
+Port:                     amqp-ssl  5671/TCP
+TargetPort:               amqp-ssl/TCP
+NodePort:                 amqp-ssl  30671/TCP
+Endpoints:                10.1.166.196:5671,10.1.166.197:5671,10.1.166.198:5671
+Port:                     management  15672/TCP
+TargetPort:               management/TCP
+NodePort:                 management  31672/TCP
+Endpoints:                10.1.166.196:15672,10.1.166.197:15672,10.1.166.198:15672
+Port:                     management-ssl  15671/TCP
+TargetPort:               management-ssl/TCP
+NodePort:                 management-ssl  31671/TCP
+Endpoints:                10.1.166.196:15671,10.1.166.197:15671,10.1.166.198:15671
+Session Affinity:         None
+External Traffic Policy:  Cluster
+Events:                   <none>

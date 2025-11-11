@@ -1,5 +1,7 @@
 # ServiceAccount para operações Redis
 apiVersion: v1
+kind: ServiceAccount
+metadata:
   name: redis-manager
   namespace: redis
 ---
@@ -26,6 +28,7 @@ rules:
 # RoleBinding para associar ServiceAccount ao Role
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
+metadata:
   name: redis-manager
   namespace: redis
 subjects:
@@ -34,7 +37,7 @@ subjects:
   namespace: redis
 roleRef:
   kind: Role
-  name: redis-operator
+  name: redis-manager
   apiGroup: rbac.authorization.k8s.io
 ---
 # ClusterRole para cert-manager (se necessário)

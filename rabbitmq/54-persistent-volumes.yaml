@@ -1,0 +1,185 @@
+apiVersion: v1
+kind: StorageClass
+metadata:
+  name: rabbitmq-fast-storage
+  labels:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/component: storage-class
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+parameters:
+  type: fast-ssd
+  encrypted: "true"
+reclaimPolicy: Retain
+---
+apiVersion: v1
+kind: StorageClass
+metadata:
+  name: rabbitmq-standard-storage
+  labels:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/component: storage-class
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+parameters:
+  type: standard
+  encrypted: "true"
+reclaimPolicy: Retain
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: rabbitmq-pv-0
+  labels:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/component: persistent-volume
+    rabbitmq.cluster: "rabbitmq"
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: rabbitmq-fast-storage
+  local:
+    path: /mnt/data/rabbitmq-0
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - k8s-node-1
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: rabbitmq-pv-1
+  labels:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/component: persistent-volume
+    rabbitmq.cluster: "rabbitmq"
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: rabbitmq-fast-storage
+  local:
+    path: /mnt/data/rabbitmq-1
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - k8s-node-2
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: rabbitmq-pv-2
+  labels:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/component: persistent-volume
+    rabbitmq.cluster: "rabbitmq"
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: rabbitmq-fast-storage
+  local:
+    path: /mnt/data/rabbitmq-2
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - k8s-node-3
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: rabbitmq-logs-pv-0
+  labels:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/component: persistent-volume-logs
+    rabbitmq.cluster: "rabbitmq"
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: rabbitmq-standard-storage
+  local:
+    path: /mnt/logs/rabbitmq-0
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - k8s-node-1
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: rabbitmq-logs-pv-1
+  labels:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/component: persistent-volume-logs
+    rabbitmq.cluster: "rabbitmq"
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: rabbitmq-standard-storage
+  local:
+    path: /mnt/logs/rabbitmq-1
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - k8s-node-2
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: rabbitmq-logs-pv-2
+  labels:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/component: persistent-volume-logs
+    rabbitmq.cluster: "rabbitmq"
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: rabbitmq-standard-storage
+  local:
+    path: /mnt/logs/rabbitmq-2
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - k8s-node-3

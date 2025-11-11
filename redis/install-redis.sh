@@ -113,7 +113,7 @@ echo ""
 
 # 6. Instalar metrics-server (necessário para HPA)
 echo "6️⃣ Instalando metrics-server..."
-microk8s kubectl apply -f 80-metrics-server.yaml
+microk8s enable metrics-server || true
 echo "✅ Metrics-server instalado"
 echo ""
 
@@ -161,7 +161,7 @@ echo "   $NODE_IP redis.home.arpa"
 echo "   $NODE_IP redis-proxy.home.arpa"
 echo ""
 echo "2. Teste a conectividade:"
-echo "   redis-cli -h redis.home.arpa -p 30379 -a Admin@123 ping"
+echo "   redis-cli -h redis.home.arpa -p 30380 -a Admin@123 ping"
 echo ""
 echo "3. Acesse o dashboard HAProxy:"
 echo "   http://redis.home.arpa:30404/stats (admin/admin123)"

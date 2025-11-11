@@ -1,0 +1,4 @@
+NAME                                     READY   STATUS    RESTARTS   AGE   IP              NODE   NOMINATED NODE   READINESS GATES
+calico-kube-controllers-77bd7c5b-pbvcw   1/1     Running   0          10m   10.1.166.193    k8s1   <none>           <none>
+calico-node-c69rg                        1/1     Running   0          10m   192.168.31.51   k8s1   <none>           <none>
+coredns-864597b5fd-b9thj                 1/1     Running   0          10m   10.1.166.194    k8s1   <none>           <none>

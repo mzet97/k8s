@@ -7,25 +7,15 @@ metadata:
   labels:
     app: redis-master
     role: master
+spec:
+  selector:
+    app: redis-cluster
+    role: master
   ports:
   - name: redis-tls
     port: 6380
     targetPort: 6380
   type: ClusterIP
----
-# Serviço Headless para Redis Réplicas
-apiVersion: v1
-kind: Service
-metadata:
-  name: redis-replica-headless
-  namespace: redis
-  labels:
-    app: redis-replica
-    role: replica
-  ports:
-  - name: redis-tls
-    port: 6380
-    targetPort: 6380
 ---
 # Serviço para Redis Réplicas (Load Balancer)
 apiVersion: v1
@@ -38,7 +28,7 @@ metadata:
     role: replica
 spec:
   selector:
-    app: redis-replica
+    app: redis-cluster
     role: replica
   ports:
   - name: redis-tls

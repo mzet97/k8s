@@ -1,0 +1,2 @@
+NAME         READY   STATUS    RESTARTS   AGE     IP       NODE     NOMINATED NODE   READINESS GATES
+rabbitmq-0   0/1     Pending   0          2m18s   <none>   <none>   <none>           <none>

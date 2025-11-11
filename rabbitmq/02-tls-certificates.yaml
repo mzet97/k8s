@@ -1,0 +1,52 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: rabbitmq-tls
+  namespace: rabbitmq
+  labels:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/component: messaging
+spec:
+  secretName: rabbitmq-tls
+  duration: 8760h # 1 year
+  renewBefore: 720h # 30 days
+  issuerRef:
+    name: local-ca
+    kind: ClusterIssuer
+  commonName: rabbitmq.home.arpa
+  dnsNames:
+  - rabbitmq.home.arpa
+  - rabbitmq.rabbitmq.svc.cluster.local
+  - rabbitmq-headless.rabbitmq.svc.cluster.local
+  - rabbitmq-0.rabbitmq-headless.rabbitmq.svc.cluster.local
+  - rabbitmq-1.rabbitmq-headless.rabbitmq.svc.cluster.local
+  - rabbitmq-2.rabbitmq-headless.rabbitmq.svc.cluster.local
+  usages:
+  - digital signature
+  - key encipherment
+  - server auth
+  - client auth
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: rabbitmq-management-tls
+  namespace: rabbitmq
+  labels:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/component: management
+spec:
+  secretName: rabbitmq-management-tls
+  duration: 8760h # 1 year
+  renewBefore: 720h # 30 days
+  issuerRef:
+    name: local-ca
+    kind: ClusterIssuer
+  commonName: rabbitmq-mgmt.home.arpa
+  dnsNames:
+  - rabbitmq-mgmt.home.arpa
+  - rabbitmq-management.rabbitmq.svc.cluster.local
+  usages:
+  - digital signature
+  - key encipherment
+  - server auth

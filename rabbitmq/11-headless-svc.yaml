@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-headless
+  namespace: rabbitmq
+  labels:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/component: messaging
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+  - name: amqp
+    port: 5672
+    targetPort: amqp
+    protocol: TCP
+  - name: amqp-ssl
+    port: 5671
+    targetPort: amqp-ssl
+    protocol: TCP
+  - name: management
+    port: 15672
+    targetPort: management
+    protocol: TCP
+  - name: management-ssl
+    port: 15671
+    targetPort: management-ssl
+    protocol: TCP
+  - name: prometheus
+    port: 15692
+    targetPort: prometheus
+    protocol: TCP
+  - name: prometheus-ssl
+    port: 15691
+    targetPort: prometheus-ssl
+    protocol: TCP
+  - name: epmd
+    port: 4369
+    targetPort: epmd
+    protocol: TCP
+  - name: inter-node
+    port: 25672
+    targetPort: inter-node
+    protocol: TCP
+  selector:
+    app.kubernetes.io/name: rabbitmq

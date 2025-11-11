@@ -1,0 +1,19 @@
+NAMESPACE     NAME                                         READY   STATUS    RESTARTS   AGE
+kube-system   pod/calico-kube-controllers-77bd7c5b-pbvcw   1/1     Running   0          3m35s
+kube-system   pod/calico-node-c69rg                        1/1     Running   0          3m35s
+kube-system   pod/coredns-864597b5fd-b9thj                 1/1     Running   0          3m35s
+
+NAMESPACE     NAME                 TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)                  AGE
+default       service/kubernetes   ClusterIP   10.152.183.1    <none>        443/TCP                  3m42s
+kube-system   service/kube-dns     ClusterIP   10.152.183.10   <none>        53/UDP,53/TCP,9153/TCP   3m39s
+
+NAMESPACE     NAME                         DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR            AGE
+kube-system   daemonset.apps/calico-node   1         1         1       1            1           kubernetes.io/os=linux   3m41s
+
+NAMESPACE     NAME                                      READY   UP-TO-DATE   AVAILABLE   AGE
+kube-system   deployment.apps/calico-kube-controllers   1/1     1            1           3m41s
+kube-system   deployment.apps/coredns                   1/1     1            1           3m39s
+
+NAMESPACE     NAME                                               DESIRED   CURRENT   READY   AGE
+kube-system   replicaset.apps/calico-kube-controllers-77bd7c5b   1         1         1       3m36s
+kube-system   replicaset.apps/coredns-864597b5fd                 1         1         1       3m36s

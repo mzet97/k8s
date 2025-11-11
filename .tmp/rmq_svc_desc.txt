@@ -1,0 +1,31 @@
+Name:              rabbitmq
+Namespace:         rabbitmq
+Labels:            app.kubernetes.io/component=messaging
+                   app.kubernetes.io/name=rabbitmq
+Annotations:       <none>
+Selector:          app.kubernetes.io/name=rabbitmq
+Type:              ClusterIP
+IP Family Policy:  SingleStack
+IP Families:       IPv4
+IP:                10.152.183.116
+IPs:               10.152.183.116
+Port:              amqp  5672/TCP
+TargetPort:        amqp/TCP
+Endpoints:         <none>
+Port:              amqp-ssl  5671/TCP
+TargetPort:        amqp-ssl/TCP
+Endpoints:         <none>
+Port:              management  15672/TCP
+TargetPort:        management/TCP
+Endpoints:         <none>
+Port:              management-ssl  15671/TCP
+TargetPort:        management-ssl/TCP
+Endpoints:         <none>
+Port:              prometheus  15692/TCP
+TargetPort:        prometheus/TCP
+Endpoints:         <none>
+Port:              prometheus-ssl  15691/TCP
+TargetPort:        prometheus-ssl/TCP
+Endpoints:         <none>
+Session Affinity:  None
+Events:            <none>

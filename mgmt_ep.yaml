@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Endpoints
+metadata:
+  annotations:
+    endpoints.kubernetes.io/last-change-trigger-time: "2025-11-09T23:04:18Z"
+  creationTimestamp: "2025-11-09T20:50:06Z"
+  labels:
+    app.kubernetes.io/component: management
+    app.kubernetes.io/name: rabbitmq
+  name: rabbitmq-management
+  namespace: rabbitmq
+  resourceVersion: "15692"
+  uid: 6e20798b-f990-4ede-9396-ea4080fb2de9
+subsets:
+- addresses:
+  - ip: 10.1.166.196
+    nodeName: k8s1
+    targetRef:
+      kind: Pod
+      name: rabbitmq-0
+      namespace: rabbitmq
+      uid: 6a621fc9-a3a0-4b63-9d83-a2ea953c0ffe
+  - ip: 10.1.166.197
+    nodeName: k8s1
+    targetRef:
+      kind: Pod
+      name: rabbitmq-1
+      namespace: rabbitmq
+      uid: 99a9de6c-1563-411e-94f5-8660a3320a46
+  - ip: 10.1.166.198
+    nodeName: k8s1
+    targetRef:
+      kind: Pod
+      name: rabbitmq-2
+      namespace: rabbitmq
+      uid: b9a94b95-b3e3-46c9-92fd-feafe3adfc7b
+  ports:
+  - name: management
+    port: 15672
+    protocol: TCP
+  - name: management-ssl
+    port: 15671
+    protocol: TCP

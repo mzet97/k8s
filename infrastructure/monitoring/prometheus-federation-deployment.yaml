@@ -1,0 +1,379 @@
+# Prometheus Global (Federado) - Alta Disponibilidade
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-global
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: global
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: prometheus
+      component: global
+  template:
+    metadata:
+      labels:
+        app: prometheus
+        component: global
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.45.0
+        args:
+        - '--config.file=/etc/prometheus/prometheus.yml'
+        - '--storage.tsdb.path=/prometheus'
+        - '--storage.tsdb.retention.time=30d'
+        - '--storage.tsdb.retention.size=50GB'
+        - '--web.console.libraries=/etc/prometheus/console_libraries'
+        - '--web.console.templates=/etc/prometheus/consoles'
+        - '--web.enable-lifecycle'
+        - '--web.enable-admin-api'
+        - '--query.timeout=2m'
+        - '--query.max-concurrency=20'
+        ports:
+        - containerPort: 9090
+          name: web
+        resources:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: web
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: web
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /-/ready
+            port: web
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
+        - name: storage
+          mountPath: /prometheus
+        - name: rules
+          mountPath: /etc/prometheus/rules
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: config
+        configMap:
+          name: prometheus-global-config
+      - name: storage
+        persistentVolumeClaim:
+          claimName: prometheus-global-pvc
+      - name: rules
+        configMap:
+          name: prometheus-global-rules
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-global-service
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: global
+spec:
+  selector:
+    app: prometheus
+    component: global
+  ports:
+  - port: 9090
+    targetPort: 9090
+    name: web
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-global-pvc
+  namespace: monitoring
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: local-hostpath
+
+---
+# Prometheus Local 1
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-local-1
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: local-1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+      component: local-1
+  template:
+    metadata:
+      labels:
+        app: prometheus
+        component: local-1
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.45.0
+        args:
+        - '--config.file=/etc/prometheus/prometheus.yml'
+        - '--storage.tsdb.path=/prometheus'
+        - '--storage.tsdb.retention.time=7d'
+        - '--storage.tsdb.retention.size=10GB'
+        - '--web.console.libraries=/etc/prometheus/console_libraries'
+        - '--web.console.templates=/etc/prometheus/consoles'
+        - '--web.enable-lifecycle'
+        - '--query.timeout=2m'
+        - '--query.max-concurrency=10'
+        ports:
+        - containerPort: 9090
+          name: web
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: web
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: web
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /-/ready
+            port: web
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
+        - name: storage
+          mountPath: /prometheus
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: config
+        configMap:
+          name: prometheus-local-1-config
+      - name: storage
+        persistentVolumeClaim:
+          claimName: prometheus-local-1-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-local-1-service
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: local-1
+spec:
+  selector:
+    app: prometheus
+    component: local-1
+  ports:
+  - port: 9090
+    targetPort: 9090
+    name: web
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-local-1-pvc
+  namespace: monitoring
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: local-hostpath
+
+---
+# Prometheus Local 2
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-local-2
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: local-2
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+      component: local-2
+  template:
+    metadata:
+      labels:
+        app: prometheus
+        component: local-2
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.45.0
+        args:
+        - '--config.file=/etc/prometheus/prometheus.yml'
+        - '--storage.tsdb.path=/prometheus'
+        - '--storage.tsdb.retention.time=7d'
+        - '--storage.tsdb.retention.size=10GB'
+        - '--web.console.libraries=/etc/prometheus/console_libraries'
+        - '--web.console.templates=/etc/prometheus/consoles'
+        - '--web.enable-lifecycle'
+        - '--query.timeout=2m'
+        - '--query.max-concurrency=10'
+        ports:
+        - containerPort: 9090
+          name: web
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: web
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: web
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /-/ready
+            port: web
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
+        volumeMounts:
+        - name: config
+          mountPath: /etc/prometheus
+        - name: storage
+          mountPath: /prometheus
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: config
+        configMap:
+          name: prometheus-local-2-config
+      - name: storage
+        persistentVolumeClaim:
+          claimName: prometheus-local-2-pvc
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-local-2-service
+  namespace: monitoring
+  labels:
+    app: prometheus
+    component: local-2
+spec:
+  selector:
+    app: prometheus
+    component: local-2
+  ports:
+  - port: 9090
+    targetPort: 9090
+    name: web
+  type: ClusterIP
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-local-2-pvc
+  namespace: monitoring
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: local-hostpath

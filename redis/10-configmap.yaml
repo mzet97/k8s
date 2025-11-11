@@ -37,6 +37,7 @@ data:
     tls-key-file /tls/tls.key
     tls-ca-cert-file /tls/ca.crt
     tls-protocols "TLSv1.2 TLSv1.3"
+    tls-auth-clients no
   
   redis-replica.conf: |
     # Configuração Replica
@@ -78,3 +79,4 @@ data:
     tls-ca-cert-file /tls/ca.crt
     tls-protocols "TLSv1.2 TLSv1.3"
     tls-replication yes
+    tls-auth-clients no

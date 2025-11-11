@@ -1,0 +1,2 @@
+NAME       ENDPOINTS   AGE
+rabbitmq   <none>      5m47s

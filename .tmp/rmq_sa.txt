@@ -1,0 +1,2 @@
+NAME       SECRETS   AGE
+rabbitmq   0         11m

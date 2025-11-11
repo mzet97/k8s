@@ -1,0 +1,45 @@
+total 12
+drwxrwsrwx    3 root     ping          4096 Nov  9 20:47 .
+drwxr-xr-x    1 root     root          4096 Nov  9 23:04 ..
+drwxr-sr-x    2 root     ping          4096 Nov  9 20:47 ..2025_11_09_20_47_46.1438621645
+lrwxrwxrwx    1 root     ping            32 Nov  9 20:47 ..data -> ..2025_11_09_20_47_46.1438621645
+lrwxrwxrwx    1 root     ping            22 Nov  9 20:47 enabled_plugins -> ..data/enabled_plugins
+lrwxrwxrwx    1 root     ping            20 Nov  9 20:47 rabbitmq.conf -> ..data/rabbitmq.conf
+
+## Core Configuration
+listeners.tcp.default = 5672
+management.tcp.port = 15672
+
+## Clustering
+cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s
+cluster_formation.k8s.host = kubernetes.default.svc.cluster.local
+cluster_formation.k8s.address_type = hostname
+cluster_formation.node_cleanup.interval = 30
+cluster_formation.node_cleanup.only_log_warning = true
+cluster_partition_handling = autoheal
+
+## Memory and Disk Thresholds
+vm_memory_high_watermark.relative = 0.6
+disk_free_limit.absolute = 2GB
+
+## Logging
+log.console = true
+log.console.level = info
+log.file.level = info
+log.file = /var/log/rabbitmq/rabbitmq.log
+
+## Prometheus Metrics
+prometheus.tcp.port = 15692
+
+## SSL/TLS disabled for homelab
+
+## Management Plugin
+management.cors.allow_origins.1 = *
+management.cors.allow_origins.2 = http://localhost:3000
+
+## Queue Configuration
+queue_master_locator = min-masters
+
+## High Availability
+cluster_keepalive_interval = 10000
+net_ticktime = 60

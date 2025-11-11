@@ -1,0 +1,316 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-disaster-recovery
+  namespace: rabbitmq
+  labels:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/component: disaster-recovery
+data:
+  recovery-procedures.md: |
+    # RabbitMQ Disaster Recovery Procedures
+    
+    ## Overview
+    This document outlines the disaster recovery procedures for the RabbitMQ cluster.
+    
+    ## Backup Strategy
+    
+    ### 1. Definitions Backup
+    - Users, vhosts, permissions, queues, exchanges, bindings
+    - Frequency: Hourly
+    - Retention: 7 days
+    - Command: `./backup-rabbitmq.sh definitions`
+    
+    ### 2. Configuration Backup
+    - Kubernetes resources, ConfigMaps, Secrets
+    - Frequency: Daily
+    - Retention: 30 days
+    - Command: `./backup-rabbitmq.sh config`
+    
+    ### 3. Data Backup
+    - Persistent volumes, queue data
+    - Frequency: Daily
+    - Retention: 7 days
+    - Command: `./backup-rabbitmq.sh volumes`
+    
+    ## Recovery Procedures
+    
+    ### Scenario 1: Single Node Failure
+    
+    1. **Identify failed node**
+       ```bash
+       kubectl get pods -n rabbitmq
+       kubectl logs -n rabbitmq rabbitmq-X
+       ```
+    
+    2. **Check cluster status**
+       ```bash
+       kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmqctl cluster_status
+       ```
+    
+    3. **If node is recoverable**
+       ```bash
+       # Restart the pod
+       kubectl delete pod -n rabbitmq rabbitmq-X
+       # Wait for restart
+       kubectl wait -n rabbitmq pod/rabbitmq-X --for=condition=Ready --timeout=300s
+       ```
+    
+    4. **If node is not recoverable**
+       ```bash
+       # Remove node from cluster
+       kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmqctl forget_cluster_node rabbit@rabbitmq-X
+       # Scale down StatefulSet
+       kubectl scale statefulset rabbitmq -n rabbitmq --replicas=2
+       # Scale back up
+       kubectl scale statefulset rabbitmq -n rabbitmq --replicas=3
+       ```
+    
+    ### Scenario 2: Complete Cluster Failure
+    
+    1. **Restore from backup**
+       ```bash
+       # Restore configuration
+       kubectl apply -f backup/config-*/
+       
+       # Restore definitions
+       kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmqadmin import < backup/definitions.json
+       
+       # Restore data (if available)
+       # Extract backup archives to persistent volumes
+       ```
+    
+    2. **Rebuild cluster**
+       ```bash
+       # Delete all pods
+       kubectl delete pods -n rabbitmq --all
+       
+       # Wait for recreation
+       kubectl wait -n rabbitmq --for=condition=Ready pod --all --timeout=600s
+       ```
+    
+    ### Scenario 3: Data Corruption
+    
+    1. **Stop cluster**
+       ```bash
+       kubectl scale statefulset rabbitmq -n rabbitmq --replicas=0
+       ```
+    
+    2. **Restore data from backup**
+       ```bash
+       # Extract backup to persistent volumes
+       # Recreate PVCs if necessary
+       ```
+    
+    3. **Restart cluster**
+       ```bash
+       kubectl scale statefulset rabbitmq -n rabbitmq --replicas=3
+       ```
+    
+    ## Contact Information
+    
+    - Primary: DevOps Team
+    - Secondary: Platform Team
+    - Escalation: Engineering Manager
+  
+  health-checks.sh: |
+    #!/bin/bash
+    
+    # RabbitMQ Health Check Script
+    # This script performs comprehensive health checks for the RabbitMQ cluster
+    
+    set -euo pipefail
+    
+    NAMESPACE="rabbitmq"
+    THRESHOLDS_FILE="/tmp/rabbitmq-thresholds.json"
+    
+    # Create thresholds file
+    cat > "$THRESHOLDS_FILE" << 'EOF'
+    {
+      "memory_threshold": 80,
+      "disk_threshold": 90,
+      "queue_depth_threshold": 10000,
+      "connection_threshold": 1000,
+      "file_descriptor_threshold": 80,
+      "socket_descriptor_threshold": 80
+    }
+    EOF
+    
+    # Function to check cluster health
+    check_cluster_health() {
+      local pod=$1
+      
+      echo "Checking cluster health for pod: $pod"
+      
+      # Check node health
+      if ! kubectl exec -n "$NAMESPACE" "$pod" -- rabbitmqctl node_health_check; then
+        echo "ERROR: Node health check failed for $pod"
+        return 1
+      fi
+      
+      # Check cluster status
+      local cluster_status=$(kubectl exec -n "$NAMESPACE" "$pod" -- rabbitmqctl cluster_status)
+      if echo "$cluster_status" | grep -q "partition"; then
+        echo "ERROR: Cluster partition detected"
+        return 1
+      fi
+      
+      echo "Cluster health check passed for $pod"
+      return 0
+    }
+    
+    # Function to check resource usage
+    check_resource_usage() {
+      local pod=$1
+      
+      echo "Checking resource usage for pod: $pod"
+      
+      # Check memory usage
+      local memory_info=$(kubectl exec -n "$NAMESPACE" "$pod" -- rabbitmqctl status | grep -A 5 "Memory")
+      local memory_usage=$(echo "$memory_info" | grep -o "[0-9]*\.[0-9]*%" | head -1 | sed 's/%//')
+      
+      if (( $(echo "$memory_usage > $(jq -r '.memory_threshold' "$THRESHOLDS_FILE")" | bc -l) )); then
+        echo "WARNING: High memory usage detected: ${memory_usage}%"
+      fi
+      
+      # Check disk usage
+      local disk_info=$(kubectl exec -n "$NAMESPACE" "$pod" -- df -h /var/lib/rabbitmq)
+      local disk_usage=$(echo "$disk_info" | tail -1 | awk '{print $5}' | sed 's/%//')
+      
+      if (( disk_usage > $(jq -r '.disk_threshold' "$THRESHOLDS_FILE") )); then
+        echo "WARNING: High disk usage detected: ${disk_usage}%"
+      fi
+      
+      echo "Resource usage check completed for $pod"
+    }
+    
+    # Function to check queue depths
+    check_queue_depths() {
+      local pod=$1
+      
+      echo "Checking queue depths for pod: $pod"
+      
+      # Get queue information
+      local queues=$(kubectl exec -n "$NAMESPACE" "$pod" -- rabbitmqctl list_queues name messages consumers)
+      
+      while IFS= read -r line; do
+        if [[ "$line" =~ ^[[:space:]]*$ ]]; then continue; fi
+        
+        local queue_name=$(echo "$line" | awk '{print $1}')
+        local message_count=$(echo "$line" | awk '{print $2}')
+        local consumer_count=$(echo "$line" | awk '{print $3}')
+        
+        if (( message_count > $(jq -r '.queue_depth_threshold' "$THRESHOLDS_FILE") )); then
+          echo "WARNING: Queue $queue_name has high message count: $message_count"
+        fi
+        
+        if (( consumer_count == 0 && message_count > 0 )); then
+          echo "WARNING: Queue $queue_name has messages but no consumers"
+        fi
+      done <<< "$queues"
+      
+      echo "Queue depth check completed for $pod"
+    }
+    
+    # Function to check connections
+    check_connections() {
+      local pod=$1
+      
+      echo "Checking connections for pod: $pod"
+      
+      # Get connection count
+      local connection_count=$(kubectl exec -n "$NAMESPACE" "$pod" -- rabbitmqctl list_connections | wc -l)
+      connection_count=$((connection_count - 2))  # Subtract header lines
+      
+      if (( connection_count > $(jq -r '.connection_threshold' "$THRESHOLDS_FILE") )); then
+        echo "WARNING: High connection count: $connection_count"
+      fi
+      
+      echo "Connection check completed for $pod"
+    }
+    
+    # Function to check file descriptors
+    check_file_descriptors() {
+      local pod=$1
+      
+      echo "Checking file descriptors for pod: $pod"
+      
+      # Get file descriptor usage
+      local fd_info=$(kubectl exec -n "$NAMESPACE" "$pod" -- rabbitmqctl status | grep -A 5 "File descriptors")
+      local fd_usage=$(echo "$fd_info" | grep -o "[0-9]*%" | head -1 | sed 's/%//')
+      
+      if (( $(echo "$fd_usage > $(jq -r '.file_descriptor_threshold' "$THRESHOLDS_FILE")" | bc -l) )); then
+        echo "WARNING: High file descriptor usage: ${fd_usage}%"
+      fi
+      
+      echo "File descriptor check completed for $pod"
+    }
+    
+    # Function to check alarms
+    check_alarms() {
+      local pod=$1
+      
+      echo "Checking alarms for pod: $pod"
+      
+      # Get active alarms
+      local alarms=$(kubectl exec -n "$NAMESPACE" "$pod" -- rabbitmqctl list_alarms)
+      
+      if [[ "$alarms" != *"Listing alarms ..."* ]] || [[ -n "$(echo "$alarms" | tail -n +2)" ]]; then
+        echo "WARNING: Active alarms detected:"
+        echo "$alarms"
+      fi
+      
+      echo "Alarm check completed for $pod"
+    }
+    
+    # Main health check function
+    main() {
+      echo "Starting RabbitMQ health checks..."
+      
+      # Get all RabbitMQ pods
+      local pods=$(kubectl get pods -n "$NAMESPACE" -l app.kubernetes.io/name=rabbitmq -o jsonpath='{.items[*].metadata.name}')
+      
+      if [ -z "$pods" ]; then
+        echo "ERROR: No RabbitMQ pods found"
+        exit 1
+      fi
+      
+      local health_status=0
+      
+      for pod in $pods; do
+        echo "================================"
+        echo "Health check for pod: $pod"
+        echo "================================"
+        
+        # Check if pod is running
+        local pod_status=$(kubectl get pod -n "$NAMESPACE" "$pod" -o jsonpath='{.status.phase}')
+        if [ "$pod_status" != "Running" ]; then
+          echo "ERROR: Pod $pod is not running (status: $pod_status)"
+          health_status=1
+          continue
+        fi
+        
+        # Run all health checks
+        check_cluster_health "$pod" || health_status=1
+        check_resource_usage "$pod"
+        check_queue_depths "$pod"
+        check_connections "$pod"
+        check_file_descriptors "$pod"
+        check_alarms "$pod"
+        
+        echo ""
+      done
+      
+      # Cleanup
+      rm -f "$THRESHOLDS_FILE"
+      
+      if [ $health_status -eq 0 ]; then
+        echo "All health checks passed!"
+      else
+        echo "Some health checks failed. Please review the output above."
+        exit 1
+      fi
+    }
+    
+    # Run health checks
+    main "$@"

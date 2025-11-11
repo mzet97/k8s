@@ -1,0 +1,1 @@
+error: error parsing rabbitmq/10-configmap.yaml: error converting YAML to JSON: yaml: line 38: could not find expected ':'

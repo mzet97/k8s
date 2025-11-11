@@ -1,0 +1,85 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-federation-config
+  namespace: rabbitmq
+  labels:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/component: federation
+data:
+  federation.conf: |
+    # Federation Configuration
+    # This configuration enables federation between RabbitMQ clusters
+    
+    # Federation upstream configuration
+    federation-upstream-set.add_upstream my-upstream {
+        uri "amqp://appuser:rabbitmq-app-secure-2024!@remote-rabbitmq.rabbitmq.svc.cluster.local:5672"
+        expires 3600000
+        message-ttl 10000
+        max-hops 1
+        prefetch-count 10
+        reconnect-delay 5
+        ack-mode on-confirm
+        trust-user-id true
+    }
+    
+    # Federation policy configuration
+    federation-policy.add_policy federate-all {
+        pattern "^federated\."
+        definition {
+            federation-upstream-set = "my-upstream"
+            federation-exchange = "all"
+            federation-queue = "all"
+        }
+        priority 1
+        apply-to exchanges
+    }
+    
+    # Shovel configuration for reliable message transfer
+    shovel.add_shovel my-shovel {
+        source-uri "amqp://appuser:rabbitmq-app-secure-2024!@localhost:5672"
+        source-exchange "source-exchange"
+        source-exchange-key "#"
+        destination-uri "amqp://appuser:rabbitmq-app-secure-2024!@remote-rabbitmq.rabbitmq.svc.cluster.local:5672"
+        destination-exchange "destination-exchange"
+        prefetch-count 1000
+        reconnect-delay 5
+        ack-mode on-confirm
+        add-forward-headers true
+        delete-after never
+    }
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-cluster-peers
+  namespace: rabbitmq
+  labels:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/component: cluster-peers
+data:
+  cluster-peers.json: |
+    {
+      "clusters": [
+        {
+          "name": "local-cluster",
+          "host": "rabbitmq.rabbitmq.svc.cluster.local",
+          "port": 5672,
+          "vhost": "/",
+          "username": "appuser",
+          "password": "rabbitmq-app-secure-2024!",
+          "ssl": false,
+          "verify": false
+        },
+        {
+          "name": "remote-cluster",
+          "host": "remote-rabbitmq.rabbitmq.svc.cluster.local",
+          "port": 5672,
+          "vhost": "/",
+          "username": "appuser",
+          "password": "rabbitmq-app-secure-2024!",
+          "ssl": false,
+          "verify": false
+        }
+      ]
+    }

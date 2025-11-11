@@ -1,0 +1,439 @@
+# ConfigMap com regras de alertas para Prometheus Federation
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-global-rules
+  namespace: monitoring
+data:
+  federation.yml: |
+    groups:
+    - name: federation
+      interval: 30s
+      rules:
+      # Métricas agregadas de disponibilidade
+      - record: job:up:sum
+        expr: sum(up) by (job)
+      
+      - record: job:up:avg
+        expr: avg(up) by (job)
+        
+      # Métricas de CPU agregadas
+      - record: job:cpu_usage:avg
+        expr: avg(100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)) by (job)
+        
+      - record: job:cpu_usage:max
+        expr: max(100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)) by (job)
+        
+      # Métricas de memória agregadas
+      - record: job:memory_usage:avg
+        expr: avg((1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100) by (job)
+        
+      - record: job:memory_usage:max
+        expr: max((1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100) by (job)
+        
+      # Métricas de disco agregadas
+      - record: job:disk_usage:avg
+        expr: avg((1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"})) * 100) by (job)
+        
+      - record: job:disk_usage:max
+        expr: max((1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"})) * 100) by (job)
+        
+      # Métricas de rede agregadas
+      - record: job:network_receive:rate5m
+        expr: avg(rate(node_network_receive_bytes_total[5m])) by (job)
+        
+      - record: job:network_transmit:rate5m
+        expr: avg(rate(node_network_transmit_bytes_total[5m])) by (job)
+        
+      # Métricas de containers agregadas
+      - record: job:container_cpu_usage:avg
+        expr: avg(rate(container_cpu_usage_seconds_total[5m])) by (job)
+        
+      - record: job:container_memory_usage:avg
+        expr: avg(container_memory_usage_bytes) by (job)
+        
+      - record: job:container_memory_working_set:avg
+        expr: avg(container_memory_working_set_bytes) by (job)
+
+  federation-alerts.yml: |
+    groups:
+    - name: federation-alerts
+      interval: 30s
+      rules:
+      # Alertas de disponibilidade
+      - alert: HighAvailabilityJobDown
+        expr: job:up:avg < 0.8
+        for: 5m
+        labels:
+          severity: warning
+          component: federation
+        annotations:
+          summary: "High availability job has low availability"
+          description: "Job {{ $labels.job }} has availability of {{ $value | humanizePercentage }}"
+          
+      - alert: CriticalAvailabilityJobDown
+        expr: job:up:avg < 0.5
+        for: 2m
+        labels:
+          severity: critical
+          component: federation
+        annotations:
+          summary: "Critical availability job is down"
+          description: "Job {{ $labels.job }} has availability of {{ $value | humanizePercentage }}"
+          
+      # Alertas de CPU
+      - alert: HighAverageCPUUsage
+        expr: job:cpu_usage:avg > 80
+        for: 10m
+        labels:
+          severity: warning
+          component: federation
+        annotations:
+          summary: "High average CPU usage for job {{ $labels.job }}"
+          description: "Average CPU usage is {{ $value }}% for job {{ $labels.job }}"
+          
+      - alert: CriticalMaxCPUUsage
+        expr: job:cpu_usage:max > 90
+        for: 5m
+        labels:
+          severity: critical
+          component: federation
+        annotations:
+          summary: "Critical maximum CPU usage for job {{ $labels.job }}"
+          description: "Maximum CPU usage is {{ $value }}% for job {{ $labels.job }}"
+          
+      # Alertas de memória
+      - alert: HighAverageMemoryUsage
+        expr: job:memory_usage:avg > 85
+        for: 10m
+        labels:
+          severity: warning
+          component: federation
+        annotations:
+          summary: "High average memory usage for job {{ $labels.job }}"
+          description: "Average memory usage is {{ $value }}% for job {{ $labels.job }}"
+          
+      - alert: CriticalMaxMemoryUsage
+        expr: job:memory_usage:max > 95
+        for: 5m
+        labels:
+          severity: critical
+          component: federation
+        annotations:
+          summary: "Critical maximum memory usage for job {{ $labels.job }}"
+          description: "Maximum memory usage is {{ $value }}% for job {{ $labels.job }}"
+          
+      # Alertas de disco
+      - alert: HighAverageDiskUsage
+        expr: job:disk_usage:avg > 80
+        for: 30m
+        labels:
+          severity: warning
+          component: federation
+        annotations:
+          summary: "High average disk usage for job {{ $labels.job }}"
+          description: "Average disk usage is {{ $value }}% for job {{ $labels.job }}"
+          
+      - alert: CriticalMaxDiskUsage
+        expr: job:disk_usage:max > 90
+        for: 10m
+        labels:
+          severity: critical
+          component: federation
+        annotations:
+          summary: "Critical maximum disk usage for job {{ $labels.job }}"
+          description: "Maximum disk usage is {{ $value }}% for job {{ $labels.job }}"
+          
+      # Alertas de Prometheus Federation
+      - alert: PrometheusFederationDown
+        expr: up{job="prometheus-federation"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          component: federation
+        annotations:
+          summary: "Prometheus federation target is down"
+          description: "Prometheus federation target {{ $labels.instance }} has been down for more than 5 minutes"
+          
+      - alert: PrometheusGlobalDown
+        expr: up{job="prometheus-global"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: federation
+        annotations:
+          summary: "Prometheus Global is down"
+          description: "Prometheus Global has been down for more than 2 minutes"
+          
+      - alert: PrometheusLocalDown
+        expr: up{job=~"prometheus-local-.*"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          component: federation
+        annotations:
+          summary: "Prometheus Local is down"
+          description: "Prometheus Local {{ $labels.instance }} has been down for more than 5 minutes"
+          
+      # Alertas de Redis
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          component: redis
+        annotations:
+          summary: "Redis instance is down"
+          description: "Redis instance {{ $labels.instance }} has been down for more than 5 minutes"
+          
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 10m
+        labels:
+          severity: warning
+          component: redis
+        annotations:
+          summary: "Redis high memory usage"
+          description: "Redis instance {{ $labels.instance }} is using {{ $value | humanizePercentage }} of available memory"
+          
+      # Alertas de Velero
+      - alert: VeleroBackupFailed
+        expr: increase(velero_backup_failure_total[1h]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: velero
+        annotations:
+          summary: "Velero backup failed"
+          description: "Velero backup has failed {{ $value }} times in the last hour"
+          
+      - alert: VeleroBackupNotRunning
+        expr: time() - velero_backup_last_successful_timestamp > 86400
+        for: 1h
+        labels:
+          severity: warning
+          component: velero
+        annotations:
+          summary: "Velero backup not running"
+          description: "No successful Velero backup in the last 24 hours"
+          
+      # Alertas de recursos
+      - alert: HighResourceQuotaUsage
+        expr: kube_resourcequota_used_bytes / kube_resourcequota_hard_bytes > 0.9
+        for: 15m
+        labels:
+          severity: warning
+          component: federation
+        annotations:
+          summary: "High resource quota usage"
+          description: "Resource quota {{ $labels.resourcequota }} in namespace {{ $labels.namespace }} is {{ $value | humanizePercentage }} used"
+          
+      - alert: PodCrashLooping
+        expr: rate(kube_pod_container_status_restarts_total[15m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: federation
+        annotations:
+          summary: "Pod is crash looping"
+          description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash looping"
+          
+      - alert: PodNotReady
+        expr: kube_pod_status_phase{phase!="Running"} > 0
+        for: 10m
+        labels:
+          severity: warning
+          component: federation
+        annotations:
+          summary: "Pod not ready"
+          description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is not ready"
+          
+      - alert: ContainerOOMKilled
+        expr: increase(kube_pod_container_status_terminated_reason{reason="OOMKilled"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: federation
+        annotations:
+          summary: "Container OOM killed"
+          description: "Container {{ $labels.container }} in pod {{ $labels.namespace }}/{{ $labels.pod }} was OOM killed"
+
+---
+# ConfigMap com regras de alertas para Prometheus Local
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-local-rules
+  namespace: monitoring
+data:
+  local.yml: |
+    groups:
+    - name: kubernetes
+      interval: 15s
+      rules:
+      # Alertas de nós
+      - alert: NodeDown
+        expr: up{job="node-exporter"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          component: node
+        annotations:
+          summary: "Node is down"
+          description: "Node {{ $labels.instance }} has been down for more than 5 minutes"
+          
+      - alert: HighNodeCPU
+        expr: 100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 10m
+        labels:
+          severity: warning
+          component: node
+        annotations:
+          summary: "High node CPU usage"
+          description: "Node {{ $labels.instance }} CPU usage is {{ $value }}%"
+          
+      - alert: HighNodeMemory
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          component: node
+        annotations:
+          summary: "High node memory usage"
+          description: "Node {{ $labels.instance }} memory usage is {{ $value }}%"
+          
+      - alert: HighNodeDisk
+        expr: (1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"})) * 100 > 80
+        for: 30m
+        labels:
+          severity: warning
+          component: node
+        annotations:
+          summary: "High node disk usage"
+          description: "Node {{ $labels.instance }} disk usage is {{ $value }}%"
+          
+      - alert: NodeDiskWillFillIn4Hours
+        expr: predict_linear(node_filesystem_avail_bytes{fstype!="tmpfs"}[1h], 4 * 3600) < 0
+        for: 5m
+        labels:
+          severity: critical
+          component: node
+        annotations:
+          summary: "Node disk will fill in 4 hours"
+          description: "Node {{ $labels.instance }} disk will fill in 4 hours"
+          
+      # Alertas de containers
+      - alert: ContainerHighCPU
+        expr: rate(container_cpu_usage_seconds_total[5m]) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          component: container
+        annotations:
+          summary: "Container high CPU usage"
+          description: "Container {{ $labels.name }} CPU usage is {{ $value | humanizePercentage }}"
+          
+      - alert: ContainerHighMemory
+        expr: (container_memory_usage_bytes / container_spec_memory_limit_bytes) > 0.9
+        for: 10m
+        labels:
+          severity: warning
+          component: container
+        annotations:
+          summary: "Container high memory usage"
+          description: "Container {{ $labels.name }} memory usage is {{ $value | humanizePercentage }}"
+          
+      # Alertas de pods
+      - alert: PodCrashLooping
+        expr: rate(kube_pod_container_status_restarts_total[15m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: pod
+        annotations:
+          summary: "Pod is crash looping"
+          description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is crash looping"
+          
+      - alert: PodNotReady
+        expr: kube_pod_status_phase{phase!="Running"} > 0
+        for: 10m
+        labels:
+          severity: warning
+          component: pod
+        annotations:
+          summary: "Pod not ready"
+          description: "Pod {{ $labels.namespace }}/{{ $labels.pod }} is not ready"
+          
+      # Alertas de recursos
+      - alert: HighResourceQuotaUsage
+        expr: kube_resourcequota_used_bytes / kube_resourcequota_hard_bytes > 0.9
+        for: 15m
+        labels:
+          severity: warning
+          component: resource
+        annotations:
+          summary: "High resource quota usage"
+          description: "Resource quota {{ $labels.resourcequota }} in namespace {{ $labels.namespace }} is {{ $value | humanizePercentage }} used"
+          
+      # Alertas de API Server
+      - alert: APIServerLatencyHigh
+        expr: histogram_quantile(0.99, sum(rate(apiserver_request_duration_seconds_bucket[5m])) by (verb, le)) > 1
+        for: 10m
+        labels:
+          severity: warning
+          component: apiserver
+        annotations:
+          summary: "API Server latency high"
+          description: "API Server {{ $labels.verb }} latency is {{ $value }}s"
+          
+      - alert: APIServerErrorRate
+        expr: sum(rate(apiserver_request_total{code=~"5.."}[5m])) by (verb) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          component: apiserver
+        annotations:
+          summary: "API Server error rate high"
+          description: "API Server {{ $labels.verb }} error rate is {{ $value | humanizePercentage }}"
+          
+      # Alertas de etcd
+      - alert: ETCDInsufficientMembers
+        expr: count(up{job="etcd"} == 0) > (count(up{job="etcd"}) / 2 - 1)
+        for: 5m
+        labels:
+          severity: critical
+          component: etcd
+        annotations:
+          summary: "etcd insufficient members"
+          description: "etcd cluster has insufficient members"
+          
+      - alert: ETCDHighFsyncDuration
+        expr: histogram_quantile(0.99, rate(etcd_disk_wal_fsync_duration_seconds_bucket[5m])) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          component: etcd
+        annotations:
+          summary: "etcd high fsync duration"
+          description: "etcd fsync duration is {{ $value }}s"
+          
+      # Alertas de rede
+      - alert: HighNetworkReceive
+        expr: rate(node_network_receive_bytes_total[5m]) > 100000000  # 100MB/s
+        for: 10m
+        labels:
+          severity: warning
+          component: network
+        annotations:
+          summary: "High network receive"
+          description: "Network receive rate is {{ $value | humanize }}B/s"
+          
+      - alert: HighNetworkTransmit
+        expr: rate(node_network_transmit_bytes_total[5m]) > 100000000  # 100MB/s
+        for: 10m
+        labels:
+          severity: warning
+          component: network
+        annotations:
+          summary: "High network transmit"
+          description: "Network transmit rate is {{ $value | humanize }}B/s"

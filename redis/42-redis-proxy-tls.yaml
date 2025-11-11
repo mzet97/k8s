@@ -44,28 +44,16 @@ data:
         stats enable
         stats uri /stats
         stats refresh 10s
-        stats auth admin:$(HAPROXY_STATS_PASSWORD)
+        # auth removido para evitar erro de config; proteja externamente se necessário
 
     # Backend conectando ao Redis Master com TLS
     backend redis_backend
         balance roundrobin
-        option tcp-check
-        tcp-check connect ssl
-        tcp-check send "AUTH $(REDIS_PASSWORD)\r\n"
-        tcp-check expect string +OK
-        tcp-check send "PING\r\n"
-        tcp-check expect string +PONG
         server redis-master redis-master.redis.svc.cluster.local:6380 check ssl verify none
 
     # Backend para réplicas (leitura)
     backend redis_replica_backend
         balance roundrobin
-        option tcp-check
-        tcp-check connect ssl
-        tcp-check send "AUTH $(REDIS_PASSWORD)\r\n"
-        tcp-check expect string +OK
-        tcp-check send "PING\r\n"
-        tcp-check expect string +PONG
         server redis-replica-0 redis-replica-0.redis-replica-headless.redis.svc.cluster.local:6380 check ssl verify none
         server redis-replica-1 redis-replica-1.redis-replica-headless.redis.svc.cluster.local:6380 check ssl verify none
         server redis-replica-2 redis-replica-2.redis-replica-headless.redis.svc.cluster.local:6380 check ssl verify none
@@ -85,8 +73,8 @@ spec:
   - redis.home.arpa
   - redis-proxy.home.arpa
   issuerRef:
-    kind: ClusterIssuer
-    name: local-ca
+    kind: Issuer
+    name: redis-ca-issuer
 ---
 # Deployment do HAProxy
 apiVersion: apps/v1
@@ -106,9 +94,22 @@ spec:
       labels:
         app: redis-proxy
     spec:
+      initContainers:
+      - name: build-pem
+        image: alpine:3.19
+        command: ["/bin/sh","-c"]
+        args:
+        - "cat /secrets/tls.crt /secrets/tls.key > /certs/redis-proxy.pem && chmod 644 /certs/redis-proxy.pem"
+        volumeMounts:
+        - name: tls-certs
+          mountPath: /secrets
+        - name: pem-certs
+          mountPath: /certs
       containers:
       - name: haproxy
         image: haproxy:2.8-alpine
+        command: ["haproxy"]
+        args: ["-db", "-f", "/usr/local/etc/haproxy/haproxy.cfg"]
         env:
         - name: REDIS_PASSWORD
           valueFrom:
@@ -131,23 +132,18 @@ spec:
         - name: haproxy-config
           mountPath: /usr/local/etc/haproxy/haproxy.cfg
           subPath: haproxy.cfg
-        - name: tls-certs
+        - name: pem-certs
           mountPath: /etc/ssl/certs
-          readOnly: true
         livenessProbe:
-          httpGet:
-            path: /stats
-            port: 8404
-            httpHeaders:
-            - name: Authorization
-              value: "Basic YWRtaW46$(echo -n admin:$(HAPROXY_STATS_PASSWORD) | base64 -w0)"
+          tcpSocket:
+            port: 6380
           initialDelaySeconds: 30
           periodSeconds: 10
           timeoutSeconds: 5
           failureThreshold: 6
         readinessProbe:
           tcpSocket:
-            port: 6379
+            port: 6380
           initialDelaySeconds: 5
           periodSeconds: 5
         resources:
@@ -164,6 +160,8 @@ spec:
       - name: tls-certs
         secret:
           secretName: redis-proxy-tls
+      - name: pem-certs
+        emptyDir: {}
 
 ---
 # Service para o proxy

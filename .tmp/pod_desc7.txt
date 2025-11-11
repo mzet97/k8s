@@ -1,0 +1,98 @@
+Name:             rabbitmq-0
+Namespace:        rabbitmq
+Priority:         0
+Service Account:  rabbitmq
+Node:             k8s1/192.168.31.51
+Start Time:       Sun, 09 Nov 2025 20:47:46 +0000
+Labels:           app.kubernetes.io/component=messaging
+                  app.kubernetes.io/name=rabbitmq
+                  apps.kubernetes.io/pod-index=0
+                  controller-revision-hash=rabbitmq-8478dd5689
+                  statefulset.kubernetes.io/pod-name=rabbitmq-0
+Annotations:      cni.projectcalico.org/containerID: da9906d95f17387ca6e6c370624fc651066d5b3f753dcc708ee7bba9a9eda3b5
+                  cni.projectcalico.org/podIP: 10.1.166.196/32
+                  cni.projectcalico.org/podIPs: 10.1.166.196/32
+                  kubectl.kubernetes.io/restartedAt: 2025-11-09T20:47:42Z
+                  prometheus.io/path: /metrics
+                  prometheus.io/port: 15692
+                  prometheus.io/scrape: true
+Status:           Running
+IP:               10.1.166.196
+IPs:
+  IP:           10.1.166.196
+Controlled By:  StatefulSet/rabbitmq
+Containers:
+  rabbitmq:
+    Container ID:   containerd://fe59216d17ca6e77c25081a3482bac1d1bf211f6d065e51c5779b28b0a925264
+    Image:          rabbitmq:3.12.12-management-alpine
+    Image ID:       docker.io/library/rabbitmq@sha256:d9432ca46abf49422c6fa36b55fd4d60a477e7360135e42c5a5800b10db4c61c
+    Ports:          5672/TCP, 5671/TCP, 15672/TCP, 15671/TCP, 15692/TCP, 15691/TCP, 4369/TCP, 25672/TCP
+    Host Ports:     0/TCP, 0/TCP, 0/TCP, 0/TCP, 0/TCP, 0/TCP, 0/TCP, 0/TCP
+    State:          Running
+      Started:      Sun, 09 Nov 2025 20:47:54 +0000
+    Ready:          True
+    Restart Count:  0
+    Limits:
+      cpu:     1
+      memory:  2Gi
+    Requests:
+      cpu:     100m
+      memory:  256Mi
+    Environment:
+      MY_POD_NAME:                    rabbitmq-0 (v1:metadata.name)
+      MY_POD_NAMESPACE:               rabbitmq (v1:metadata.namespace)
+      RABBITMQ_DEFAULT_USER:          <set to the key 'username' in secret 'rabbitmq-admin'>  Optional: false
+      RABBITMQ_DEFAULT_PASS:          <set to the key 'password' in secret 'rabbitmq-admin'>  Optional: false
+      RABBITMQ_ERLANG_COOKIE:         <set to the key 'cookie' in secret 'rabbitmq-admin'>    Optional: false
+      RABBITMQ_USE_LONGNAME:          true
+      K8S_SERVICE_NAME:               rabbitmq-headless
+      RABBITMQ_ENABLED_PLUGINS_FILE:  /etc/rabbitmq/enabled_plugins
+      RABBITMQ_CONFIG_FILE:           /etc/rabbitmq/rabbitmq.conf
+      RABBITMQ_LOGS:                  /var/log/rabbitmq/rabbitmq.log
+      RABBITMQ_SASL_LOGS:             /var/log/rabbitmq/rabbitmq-sasl.log
+    Mounts:
+      /etc/rabbitmq from config (ro)
+      /var/lib/rabbitmq from data (rw)
+      /var/log/rabbitmq from logs (rw)
+      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-5rxwp (ro)
+Conditions:
+  Type              Status
+  Initialized       True 
+  Ready             True 
+  ContainersReady   True 
+  PodScheduled      True 
+Volumes:
+  config:
+    Type:      ConfigMap (a volume populated by a ConfigMap)
+    Name:      rabbitmq-config
+    Optional:  false
+  ssl-certs:
+    Type:       EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:     
+    SizeLimit:  <unset>
+  data:
+    Type:       EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:     
+    SizeLimit:  <unset>
+  logs:
+    Type:       EmptyDir (a temporary directory that shares a pod's lifetime)
+    Medium:     
+    SizeLimit:  <unset>
+  kube-api-access-5rxwp:
+    Type:                    Projected (a volume that contains injected data from multiple sources)
+    TokenExpirationSeconds:  3607
+    ConfigMapName:           kube-root-ca.crt
+    ConfigMapOptional:       <nil>
+    DownwardAPI:             true
+QoS Class:                   Burstable
+Node-Selectors:              <none>
+Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
+                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
+Events:
+  Type    Reason     Age   From               Message
+  ----    ------     ----  ----               -------
+  Normal  Scheduled  2m    default-scheduler  Successfully assigned rabbitmq/rabbitmq-0 to k8s1
+  Normal  Pulling    2m    kubelet            Pulling image "rabbitmq:3.12.12-management-alpine"
+  Normal  Pulled     112s  kubelet            Successfully pulled image "rabbitmq:3.12.12-management-alpine" in 7.256s (7.256s including waiting)
+  Normal  Created    112s  kubelet            Created container rabbitmq
+  Normal  Started    112s  kubelet            Started container rabbitmq

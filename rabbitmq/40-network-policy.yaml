@@ -1,0 +1,113 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rabbitmq-network-policy
+  namespace: rabbitmq
+  labels:
+    app.kubernetes.io/name: rabbitmq
+    app.kubernetes.io/component: network-policy
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: rabbitmq
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Temporarily allow Management UI from any namespace for homelab troubleshooting
+  - from:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 15672  # Management UI HTTP
+    - protocol: TCP
+      port: 15671  # Management UI SSL (if re-enabled)
+  # Allow ingress from monitoring namespace
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 15692  # Prometheus metrics
+  # Allow ingress from ingress-nginx namespace
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress
+    ports:
+    - protocol: TCP
+      port: 15672  # Management UI
+    - protocol: TCP
+      port: 15671  # Management UI SSL
+  # Allow AMQP from ingress namespace (TCP streams)
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: ingress
+    ports:
+    - protocol: TCP
+      port: 5672   # AMQP
+    - protocol: TCP
+      port: 5671   # AMQP SSL
+  # Allow ingress from same namespace (cluster communication)
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: rabbitmq
+    ports:
+    - protocol: TCP
+      port: 4369   # EPMD
+    - protocol: TCP
+      port: 5672   # AMQP
+    - protocol: TCP
+      port: 5671   # AMQP SSL
+    - protocol: TCP
+      port: 25672  # Inter-node communication
+  # Allow ingress from application namespaces
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          rabbitmq-access: "true"
+    ports:
+    - protocol: TCP
+      port: 5672   # AMQP
+    - protocol: TCP
+      port: 5671   # AMQP SSL
+  egress:
+  # Allow DNS resolution
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: UDP
+      port: 53
+  # Allow egress to same namespace (cluster communication)
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: rabbitmq
+    ports:
+    - protocol: TCP
+      port: 4369   # EPMD
+    - protocol: TCP
+      port: 25672  # Inter-node communication
+  # Allow egress to kube-system for API access
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: TCP
+      port: 443
+    - protocol: TCP
+      port: 6443
+  # Allow egress for monitoring
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: monitoring
+    ports:
+    - protocol: TCP
+      port: 9090  # Prometheus
+    - protocol: TCP
+      port: 3000  # Grafana

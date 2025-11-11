@@ -1,0 +1,4 @@
+NAME         READY   STATUS    RESTARTS         AGE    IP             NODE   NOMINATED NODE   READINESS GATES
+rabbitmq-0   1/1     Running   19 (9m1s ago)    135m   10.1.166.196   k8s1   <none>           <none>
+rabbitmq-1   1/1     Running   19 (8m54s ago)   134m   10.1.166.197   k8s1   <none>           <none>
+rabbitmq-2   1/1     Running   19 (9m25s ago)   134m   10.1.166.198   k8s1   <none>           <none>

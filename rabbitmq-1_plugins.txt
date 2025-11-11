@@ -1,0 +1,9 @@
+Listing plugins with pattern ".*" ...
+ Configured: E = explicitly enabled; e = implicitly enabled
+ | Status: * = running on rabbit@rabbitmq-1.rabbitmq-headless.rabbitmq.svc.cluster.local
+ |/
+[E*] rabbitmq_management         3.12.12
+[E*] rabbitmq_management_agent   3.12.12
+[E*] rabbitmq_peer_discovery_k8s 3.12.12
+[E*] rabbitmq_prometheus         3.12.12
+[E*] rabbitmq_web_dispatch       3.12.12
