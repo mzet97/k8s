@@ -32,7 +32,7 @@ data:
     
     # TLS Configuration
     tls-port 6380
-    port 0
+    port 6379
     tls-cert-file /tls/tls.crt
     tls-key-file /tls/tls.key
     tls-ca-cert-file /tls/ca.crt
@@ -73,7 +73,7 @@ data:
     
     # TLS Configuration
     tls-port 6380
-    port 0
+    port 6379
     tls-cert-file /tls/tls.crt
     tls-key-file /tls/tls.key
     tls-ca-cert-file /tls/ca.crt

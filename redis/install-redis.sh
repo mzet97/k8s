@@ -70,6 +70,7 @@ echo ""
 echo "4️⃣ Implantando Redis Master e Réplicas..."
 microk8s kubectl apply -f 21-master-statefulset.yaml
 microk8s kubectl apply -f 22-replica-statefulset.yaml
+microk8s kubectl apply -f 31-ingress.yaml
 echo "✅ Redis Master e Réplicas implantados"
 echo ""
 
@@ -119,7 +120,6 @@ echo ""
 
 # 7. Configurar acesso externo
 echo "7️⃣ Configurando acesso externo..."
-microk8s kubectl apply -f 42-redis-proxy-tls.yaml
 microk8s kubectl apply -f 43-dns-config.yaml
 echo "✅ Acesso externo configurado"
 echo ""

@@ -87,15 +87,6 @@ else
 fi
 echo ""
 
-echo "5️⃣ Removendo proxy Redis..."
-if microk8s kubectl get -f 42-redis-proxy-tls.yaml &> /dev/null; then
-    microk8s kubectl delete -f 42-redis-proxy-tls.yaml
-    echo "✅ Proxy Redis removido"
-else
-    echo "⚠️ Arquivo 42-redis-proxy-tls.yaml não encontrado ou já removido"
-fi
-echo ""
-
 echo "6️⃣ Removendo job de configuração de replicação..."
 if microk8s kubectl get -f 31-replication-setup-job.yaml &> /dev/null; then
     microk8s kubectl delete -f 31-replication-setup-job.yaml
@@ -119,6 +110,7 @@ if microk8s kubectl get -f 21-master-statefulset.yaml &> /dev/null; then
 else
     echo "⚠️ Arquivo 21-master-statefulset.yaml não encontrado ou já removido"
 fi
+microk8s kubectl delete -f 31-ingress.yaml --ignore-not-found=true
 echo ""
 
 # Aguardar pods serem terminados

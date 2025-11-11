@@ -6,7 +6,6 @@ Este projeto implementa uma solução completa de Redis Master-Replica para Kube
 
 - ✅ **Alta Disponibilidade** - Master + 3 Réplicas
 - ✅ **Segurança TLS** - Certificados automáticos
-- ✅ **Acesso Externo** - Proxy HAProxy com terminação TLS
 - ✅ **Monitoramento** - Métricas e logs centralizados
 - ✅ **Backup Automático** - CronJobs configurados
 - ✅ **DNS Simplificado** - Configuração `home.arpa`
@@ -18,10 +17,9 @@ A arquitetura é composta pelos seguintes componentes:
 - **Master StatefulSet**: Garante que uma única instância do Redis Master esteja sempre em execução.
 - **Replica StatefulSet**: Gerencia 3 réplicas do Redis, garantindo alta disponibilidade para leitura.
 - **Services**:
-  - `redis-master`: Expõe o Redis Master internamente no cluster.
+  - `redis-master`: Expõe o Redis Master internamente no cluster e externamente via NodePort.
   - `redis-replica-headless`: Serviço headless para as réplicas, usado para descoberta.
   - `redis-client`: Ponto de entrada para clientes, balanceando a carga entre master e réplicas.
-- **HAProxy**: Atua como um proxy reverso para acesso externo, com terminação TLS e um dashboard de estatísticas.
 - **Certificados TLS**: Gerenciados automaticamente pelo `cert-manager` para garantir a comunicação segura.
 - **ConfigMaps e Secrets**: Armazenam as configurações do Redis e as credenciais de autenticação.
 
@@ -60,9 +58,8 @@ kubectl apply -f 13-master-svc.yaml
 kubectl apply -f 21-master-statefulset.yaml
 kubectl apply -f 22-replica-statefulset.yaml
 
-# 5. Configurar acesso externo
-kubectl apply -f 42-redis-proxy-tls.yaml
-kubectl apply -f 43-dns-config.yaml
+# 5. Configurar acesso externo (NodePort)
+# (O serviço redis-master já está configurado para NodePort)
 ```
 
 ## 🧪 Testes via Redis CLI
@@ -78,8 +75,8 @@ Adicione a seguinte entrada ao seu arquivo `/etc/hosts`:
 ### Comandos de Teste
 
 ```bash
-# Via proxy HAProxy (recomendado)
-redis-cli -h redis.home.arpa -p 30379 -a Admin@123 ping
+# Via NodePort direto (não-TLS)
+redis-cli -h <IP_DO_NÓ> -p 30379 -a Admin@123 ping
 
 # Via TLS direto
 redis-cli -h redis.home.arpa -p 30380 --tls --insecure -a Admin@123 ping
