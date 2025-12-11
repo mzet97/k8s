@@ -4,11 +4,13 @@ metadata:
   name: grafana-ingress
   namespace: monitoring
   annotations:
-    kubernetes.io/ingress.class: public
+    kubernetes.io/ingress.class: traefik
     cert-manager.io/cluster-issuer: local-ca
 spec:
+  ingressClassName: traefik
   tls:
-  - hosts: ["grafana.home.arpa"]
+  - hosts:
+    - grafana.home.arpa
     secretName: grafana-tls
   rules:
   - host: grafana.home.arpa

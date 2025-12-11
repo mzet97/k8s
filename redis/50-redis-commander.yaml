@@ -1,0 +1,112 @@
+---
+# Redis Commander - Interface Web para Redis
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-commander
+  namespace: redis
+  labels:
+    app: redis-commander
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis-commander
+  template:
+    metadata:
+      labels:
+        app: redis-commander
+    spec:
+      containers:
+      - name: redis-commander
+        image: ghcr.io/joeferner/redis-commander:latest
+        ports:
+        - containerPort: 8081
+          name: http
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-auth
+              key: REDIS_PASSWORD
+        - name: REDIS_HOST
+          value: "redis-master"
+        - name: REDIS_PORT
+          value: "6379"
+        - name: HTTP_USER
+          value: "admin"
+        - name: HTTP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-auth
+              key: REDIS_PASSWORD
+        - name: PORT
+          value: "8081"
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8081
+          initialDelaySeconds: 10
+          periodSeconds: 5
+
+---
+# Service para Redis Commander
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-commander
+  namespace: redis
+  labels:
+    app: redis-commander
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8081
+    targetPort: 8081
+    protocol: TCP
+    name: http
+  selector:
+    app: redis-commander
+
+---
+# Ingress para Redis Commander
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: redis-stats
+  namespace: redis
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    cert-manager.io/cluster-issuer: local-ca
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - redis-stats.home.arpa
+    secretName: redis-stats-tls
+  rules:
+  - host: redis-stats.home.arpa
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: redis-commander
+            port:
+              number: 8081

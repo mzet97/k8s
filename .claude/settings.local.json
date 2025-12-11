@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod:*)",
+      "Bash(for script in *.sh)",
+      "Bash(do echo \"Validating $script...\")",
+      "Bash(bash:*)",
+      "Bash(echo:*)",
+      "Bash(done)",
+      "Bash(do bash -n \"$script\")",
+      "Bash(sudo systemctl status:*)",
+      "Bash(sudo ls:*)",
+      "Bash(cat:*)",
+      "Bash(su - k8s1 -c \"kubectl get nodes\")",
+      "Bash(su - k8s1 -c \"kubectl get pods -n kube-system | grep traefik\")",
+      "Bash(su - k8s1 -c \"kubectl get pods -A\")",
+      "Bash(su - k8s1 -c:*)",
+      "Bash(chown:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(systemctl status:*)",
+      "Bash(sudo chown:*)",
+      "Bash(sudo chmod:*)",
+      "Bash(kubectl get:*)"
+    ]
+  }
+}

@@ -1,0 +1,52 @@
+# Certificados TLS para Redis usando cert-manager com local-ca (K3s)
+---
+# Certificado TLS para Redis usando o ClusterIssuer local-ca do K3s
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: redis-server-cert
+  namespace: redis
+spec:
+  secretName: redis-tls-secret
+  issuerRef:
+    name: local-ca  # Usa o ClusterIssuer já configurado no K3s
+    kind: ClusterIssuer
+    group: cert-manager.io
+  commonName: redis-master.redis.svc.cluster.local
+  dnsNames:
+  # Master
+  - redis-master
+  - redis-master.redis
+  - redis-master.redis.svc
+  - redis-master.redis.svc.cluster.local
+  # Replicas (headless service)
+  - redis-replica-0.redis-replica-headless
+  - redis-replica-0.redis-replica-headless.redis
+  - redis-replica-0.redis-replica-headless.redis.svc
+  - redis-replica-0.redis-replica-headless.redis.svc.cluster.local
+  - redis-replica-1.redis-replica-headless
+  - redis-replica-1.redis-replica-headless.redis
+  - redis-replica-1.redis-replica-headless.redis.svc
+  - redis-replica-1.redis-replica-headless.redis.svc.cluster.local
+  - redis-replica-2.redis-replica-headless
+  - redis-replica-2.redis-replica-headless.redis
+  - redis-replica-2.redis-replica-headless.redis.svc
+  - redis-replica-2.redis-replica-headless.redis.svc.cluster.local
+  # LoadBalancer services
+  - redis-master-lb
+  - redis-master-lb.redis
+  - redis-master-lb.redis.svc
+  - redis-master-lb.redis.svc.cluster.local
+  # Cluster service
+  - redis-cluster
+  - redis-cluster.redis
+  - redis-cluster.redis.svc
+  - redis-cluster.redis.svc.cluster.local
+  # Localhost
+  - localhost
+  ipAddresses:
+  - 127.0.0.1
+  # Opcional: adicionar IP do node se necessário
+  # - 192.168.1.51
+  duration: 8760h  # 1 year
+  renewBefore: 720h  # 30 days

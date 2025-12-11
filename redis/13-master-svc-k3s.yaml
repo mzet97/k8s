@@ -1,0 +1,78 @@
+# Serviços para Redis Master - Adaptado para K3s com ServiceLB
+---
+# Serviço ClusterIP para acesso interno
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-master
+  namespace: redis
+  labels:
+    app: redis-cluster
+    role: master
+spec:
+  selector:
+    app: redis-cluster
+    role: master
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: 6379
+  - name: redis-tls
+    port: 6380
+    targetPort: 6380
+  type: ClusterIP
+
+---
+# Serviço LoadBalancer para acesso externo via ServiceLB
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-master-lb
+  namespace: redis
+  labels:
+    app: redis-cluster
+    role: master
+  annotations:
+    # Opcional: configurar IP específico se necessário
+    # klipper.cattle.io/expose: "true"
+spec:
+  selector:
+    app: redis-cluster
+    role: master
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: 6379
+    protocol: TCP
+  - name: redis-tls
+    port: 6380
+    targetPort: 6380
+    protocol: TCP
+  type: LoadBalancer
+  # O ServiceLB (Klipper) automaticamente atribuirá o IP do node como EXTERNAL-IP
+  # Acesso: <NODE_IP>:6379 (sem TLS) e <NODE_IP>:6380 (TLS)
+
+---
+# Serviço NodePort (mantido para compatibilidade/fallback)
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-master-nodeport
+  namespace: redis
+  labels:
+    app: redis-cluster
+    role: master
+spec:
+  selector:
+    app: redis-cluster
+    role: master
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: 6379
+    nodePort: 30379
+  - name: redis-tls
+    port: 6380
+    targetPort: 6380
+    nodePort: 30380
+  type: NodePort

@@ -1,0 +1,163 @@
+# Exemplo: MinIO com Traefik IngressRoute
+# Este arquivo mostra como expor o MinIO usando Traefik ao invés de NGINX
+
+---
+# MinIO Console - Interface Web
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: minio-console
+  namespace: minio
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+  - match: Host(`minio-console.home.arpa`)
+    kind: Rule
+    services:
+    - name: minio-console
+      port: 9001
+  tls:
+    secretName: minio-console-tls
+
+---
+# MinIO S3 API
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: minio-s3
+  namespace: minio
+  annotations:
+    kubernetes.io/ingress.class: traefik
+spec:
+  entryPoints:
+    - websecure
+  routes:
+  - match: Host(`minio-s3.home.arpa`)
+    kind: Rule
+    services:
+    - name: minio
+      port: 9000
+  tls:
+    secretName: minio-s3-tls
+
+---
+# Redirecionamento HTTP → HTTPS para MinIO Console
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: redirect-https
+  namespace: minio
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: minio-console-http
+  namespace: minio
+spec:
+  entryPoints:
+    - web
+  routes:
+  - match: Host(`minio-console.home.arpa`)
+    kind: Rule
+    services:
+    - name: minio-console
+      port: 9001
+    middlewares:
+    - name: redirect-https
+
+---
+# Redirecionamento HTTP → HTTPS para MinIO S3
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: minio-s3-http
+  namespace: minio
+spec:
+  entryPoints:
+    - web
+  routes:
+  - match: Host(`minio-s3.home.arpa`)
+    kind: Rule
+    services:
+    - name: minio
+      port: 9000
+    middlewares:
+    - name: redirect-https
+
+---
+# Certificado TLS para MinIO Console (usando cert-manager)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: minio-console-tls
+  namespace: minio
+spec:
+  secretName: minio-console-tls
+  issuerRef:
+    name: letsencrypt-prod  # ou selfsigned-issuer para testes
+    kind: ClusterIssuer
+  dnsNames:
+  - minio-console.home.arpa
+
+---
+# Certificado TLS para MinIO S3 API (usando cert-manager)
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: minio-s3-tls
+  namespace: minio
+spec:
+  secretName: minio-s3-tls
+  issuerRef:
+    name: letsencrypt-prod  # ou selfsigned-issuer para testes
+    kind: ClusterIssuer
+  dnsNames:
+  - minio-s3.home.arpa
+
+---
+# Alternativa: Usando Ingress padrão Kubernetes (mais simples)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: minio-console-ingress
+  namespace: minio
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+spec:
+  tls:
+  - hosts:
+    - minio-console.home.arpa
+    secretName: minio-console-tls-ingress
+  rules:
+  - host: minio-console.home.arpa
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: minio-console
+            port:
+              number: 9001
+
+---
+# Configurar /etc/hosts para testes locais
+# Execute no seu host:
+#
+# NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+# echo "$NODE_IP minio-console.home.arpa" | sudo tee -a /etc/hosts
+# echo "$NODE_IP minio-s3.home.arpa" | sudo tee -a /etc/hosts
+#
+# Depois acesse:
+# - Console: https://minio-console.home.arpa
+# - S3 API: https://minio-s3.home.arpa

@@ -1,0 +1,194 @@
+# Exemplo de Certificado usando cert-manager
+# Este é um exemplo de teste - NÃO aplicar em produção sem revisar
+
+---
+# Namespace de teste
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cert-test
+
+---
+# Certificado de exemplo
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: test-certificate
+  namespace: cert-test
+spec:
+  # Nome do secret onde o certificado será armazenado
+  secretName: test-tls-secret
+
+  # Duração do certificado (90 dias)
+  duration: 2160h # 90d
+
+  # Renovar quando faltar 30 dias
+  renewBefore: 720h # 30d
+
+  # Subject do certificado
+  subject:
+    organizations:
+      - homelab
+
+  # Issuer que criará o certificado
+  issuerRef:
+    name: local-ca
+    kind: ClusterIssuer
+    group: cert-manager.io
+
+  # DNS names no certificado
+  dnsNames:
+    - test.home.arpa
+    - www.test.home.arpa
+
+  # IPs no certificado (opcional)
+  # ipAddresses:
+  #   - 192.168.1.51
+
+---
+# Deployment de teste (nginx simples)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test-nginx
+  namespace: cert-test
+  labels:
+    app: test-nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: test-nginx
+  template:
+    metadata:
+      labels:
+        app: test-nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: html
+          mountPath: /usr/share/nginx/html
+      volumes:
+      - name: html
+        configMap:
+          name: test-html
+
+---
+# ConfigMap com HTML de teste
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-html
+  namespace: cert-test
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Cert-Manager Test</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          height: 100vh;
+          margin: 0;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+        }
+        .container {
+          text-align: center;
+          padding: 2rem;
+          background: rgba(255, 255, 255, 0.1);
+          border-radius: 10px;
+          backdrop-filter: blur(10px);
+        }
+        h1 { margin: 0 0 1rem 0; }
+        .status {
+          background: rgba(76, 175, 80, 0.3);
+          padding: 1rem;
+          border-radius: 5px;
+          margin-top: 1rem;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <h1>🔒 Cert-Manager Test</h1>
+        <p>Se você está vendo esta página via HTTPS, o cert-manager está funcionando!</p>
+        <div class="status">
+          <strong>✓ Certificado TLS Ativo</strong><br>
+          Issuer: local-ca<br>
+          DNS: test.local
+        </div>
+      </div>
+    </body>
+    </html>
+
+---
+# Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: test-nginx
+  namespace: cert-test
+spec:
+  selector:
+    app: test-nginx
+  ports:
+  - port: 80
+    targetPort: 80
+
+---
+# IngressRoute (Traefik) com TLS
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: test-nginx-https
+  namespace: cert-test
+spec:
+  entryPoints:
+    - websecure
+  routes:
+  - match: Host(`test.home.arpa`)
+    kind: Rule
+    services:
+    - name: test-nginx
+      port: 80
+  tls:
+    secretName: test-tls-secret
+
+---
+# IngressRoute para redirecionar HTTP → HTTPS
+apiVersion: traefik.containo.us/v1alpha1
+kind: Middleware
+metadata:
+  name: redirect-https
+  namespace: cert-test
+spec:
+  redirectScheme:
+    scheme: https
+    permanent: true
+
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: test-nginx-http
+  namespace: cert-test
+spec:
+  entryPoints:
+    - web
+  routes:
+  - match: Host(`test.home.arpa`)
+    kind: Rule
+    services:
+    - name: test-nginx
+      port: 80
+    middlewares:
+    - name: redirect-https

@@ -4,12 +4,13 @@ metadata:
   name: minio-s3-ingress
   namespace: minio
   annotations:
-    kubernetes.io/ingress.class: public
+    kubernetes.io/ingress.class: traefik
     cert-manager.io/cluster-issuer: local-ca
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
 spec:
+  ingressClassName: traefik
   tls:
-  - hosts: ["minio-s3.home.arpa"]
+  - hosts:
+    - minio-s3.home.arpa
     secretName: minio-s3-tls
   rules:
   - host: minio-s3.home.arpa
@@ -19,6 +20,6 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: minio
+            name: minio-service
             port:
               number: 9000

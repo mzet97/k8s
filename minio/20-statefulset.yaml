@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: minio
+  namespace: minio
+  labels:
+    app.kubernetes.io/name: minio
+    app.kubernetes.io/component: storage
+spec:
+  serviceName: minio-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: minio
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: minio
+        app.kubernetes.io/component: storage
+    spec:
+      serviceAccountName: minio
+      securityContext:
+        fsGroup: 1000
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+      - name: minio
+        image: quay.io/minio/minio:RELEASE.2024-01-18T22-51-28Z
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/sh
+        - -c
+        - |
+          mkdir -p /data/minio
+          minio server /data --console-address :9001
+        env:
+        - name: MINIO_ROOT_USER
+          valueFrom:
+            secretKeyRef:
+              name: minio-creds
+              key: rootUser
+        - name: MINIO_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: minio-creds
+              key: rootPassword
+        - name: MINIO_PROMETHEUS_AUTH_TYPE
+          value: "public"
+        - name: MINIO_SERVER_URL
+          value: "https://minio-s3.home.arpa"
+        - name: MINIO_BROWSER_REDIRECT_URL
+          value: "https://minio-console.home.arpa"
+        ports:
+        - name: api
+          containerPort: 9000
+        - name: console
+          containerPort: 9001
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /minio/health/live
+            port: api
+          initialDelaySeconds: 30
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /minio/health/ready
+            port: api
+          initialDelaySeconds: 30
+          periodSeconds: 20
+        volumeMounts:
+        - name: data
+          mountPath: /data
+
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: local-path  # K3s default StorageClass
+      resources:
+        requests:
+          storage: 100Gi

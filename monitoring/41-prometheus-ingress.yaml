@@ -4,11 +4,13 @@ metadata:
   name: prometheus-ingress
   namespace: monitoring
   annotations:
-    kubernetes.io/ingress.class: public
+    kubernetes.io/ingress.class: traefik
     cert-manager.io/cluster-issuer: local-ca
 spec:
+  ingressClassName: traefik
   tls:
-  - hosts: ["prometheus.home.arpa"]
+  - hosts:
+    - prometheus.home.arpa
     secretName: prometheus-tls
   rules:
   - host: prometheus.home.arpa

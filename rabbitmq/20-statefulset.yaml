@@ -163,11 +163,7 @@ spec:
       - name: ssl-certs
         # TLS mount removido em homelab para simplificar
         emptyDir: {}
-      - name: data
-        emptyDir: {}
-      - name: logs
-        emptyDir: {}
-      
+
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -180,5 +176,21 @@ spec:
                   values:
                   - rabbitmq
               topologyKey: kubernetes.io/hostname
-  
-  # volumeClaimTemplates temporarily replaced by emptyDir for homelab
+
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: local-path  # K3s default StorageClass
+      resources:
+        requests:
+          storage: 10Gi
+  - metadata:
+      name: logs
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: local-path
+      resources:
+        requests:
+          storage: 2Gi

@@ -23,7 +23,7 @@ spec:
   resources:
     requests:
       storage: 10Gi
-  storageClassName: microk8s-strict
+  storageClassName: local-path  # K3s default StorageClass
 ---
 apiVersion: apps/v1
 kind: Deployment

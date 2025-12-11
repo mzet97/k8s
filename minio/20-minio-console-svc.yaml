@@ -5,8 +5,8 @@ metadata:
   namespace: minio
 spec:
   selector:
-    v1.min.io/tenant: microk8s
+    app.kubernetes.io/name: minio
   ports:
     - name: console
-      port: 9090
-      targetPort: 9090
+      port: 9001
+      targetPort: 9001

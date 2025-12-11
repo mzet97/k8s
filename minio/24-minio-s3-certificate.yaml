@@ -5,6 +5,8 @@ metadata:
   namespace: minio
 spec:
   secretName: minio-s3-tls
+  duration: 8760h  # 1 year
+  renewBefore: 720h  # 30 days
   dnsNames:
   - minio-s3.home.arpa
   issuerRef:
