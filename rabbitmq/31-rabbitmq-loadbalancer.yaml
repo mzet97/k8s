@@ -1,0 +1,30 @@
+---
+# LoadBalancer para acesso externo ao RabbitMQ via rabbitmq.home.arpa
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq-lb
+  namespace: rabbitmq
+  labels:
+    app: rabbitmq
+spec:
+  type: LoadBalancer
+  selector:
+    app: rabbitmq
+  ports:
+  - name: amqp
+    port: 5672
+    targetPort: 5672
+    protocol: TCP
+  - name: amqps
+    port: 5671
+    targetPort: 5671
+    protocol: TCP
+  - name: management
+    port: 15672
+    targetPort: 15672
+    protocol: TCP
+  - name: management-tls
+    port: 15671
+    targetPort: 15671
+    protocol: TCP

@@ -21,6 +21,8 @@ data:
     output {
       elasticsearch {
         hosts => ["http://elasticsearch:9200"]
+        user => "${ELASTICSEARCH_USERNAME}"
+        password => "${ELASTICSEARCH_PASSWORD}"
         index => "logs-%{+YYYY.MM.dd}"
       }
       stdout { codec => rubydebug }

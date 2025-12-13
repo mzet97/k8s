@@ -1,10 +1,9 @@
 #!/bin/bash
 
-# Script de Remoção do Redis Master-Replica no Kubernetes
-# Baseado na documentação do README.md
-# Executa os comandos na ordem reversa para remoção completa
+# Script de Remoção do Redis Master-Replica no K3s
+# Remove todos os recursos do Redis na ordem correta
 
-set -e  # Parar execução em caso de erro
+set -e
 
 # Flag opcional --force para remover sem confirmação
 FORCE=false
@@ -12,234 +11,146 @@ if [[ "$1" == "--force" ]]; then
     FORCE=true
 fi
 
-echo "🗑️ Iniciando remoção do Redis Master-Replica no Kubernetes..."
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+NAMESPACE="redis"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+echo -e "${RED}🗑️  Iniciando remoção do Redis Master-Replica no K3s...${NC}"
 echo ""
 
-# Verificar se microk8s está disponível
-if ! command -v microk8s &> /dev/null; then
-    echo "❌ Erro: microk8s não encontrado."
+# Verificar se kubectl está disponível
+if ! command -v kubectl &> /dev/null; then
+    echo -e "${RED}❌ Erro: kubectl não encontrado.${NC}"
     exit 1
 fi
 
 # Verificar se o namespace redis existe
-if ! microk8s kubectl get namespace redis &> /dev/null; then
-    echo "⚠️ Namespace 'redis' não encontrado. Nada para remover."
+if ! kubectl get namespace $NAMESPACE &> /dev/null; then
+    echo -e "${YELLOW}⚠️  Namespace '$NAMESPACE' não encontrado. Nada para remover.${NC}"
     exit 0
 fi
 
-echo "📋 Namespace 'redis' encontrado. Iniciando remoção..."
+echo -e "${BLUE}📋 Namespace '$NAMESPACE' encontrado. Iniciando remoção...${NC}"
 echo ""
 
 # Mostrar recursos atuais antes da remoção
-echo "📊 Recursos atuais no namespace redis:"
-microk8s kubectl -n redis get all
+echo -e "${BLUE}📊 Recursos atuais no namespace $NAMESPACE:${NC}"
+kubectl -n $NAMESPACE get all
 echo ""
 
 # Confirmar remoção
 if [[ "$FORCE" != true ]]; then
-  read -p "⚠️ Tem certeza que deseja remover TODOS os recursos do Redis? (y/N): " -n 1 -r
+  read -p "⚠️  Tem certeza que deseja remover TODOS os recursos do Redis? (y/N): " -n 1 -r
   echo
   if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-      echo "❌ Remoção cancelada pelo usuário."
+      echo -e "${RED}❌ Remoção cancelada pelo usuário.${NC}"
       exit 0
   fi
 else
-  echo "⚙️ Remoção forçada (--force) habilitada, pulando confirmação."
+  echo -e "${YELLOW}⚙️  Remoção forçada (--force) habilitada, pulando confirmação.${NC}"
 fi
 
-echo "🚀 Iniciando remoção dos recursos (ordem reversa)..."
+echo -e "${BLUE}🚀 Iniciando remoção dos recursos (ordem reversa)...${NC}"
 echo ""
 
-# Remover todos os recursos (ordem reversa da instalação)
-echo "1️⃣ Removendo alta disponibilidade..."
-if microk8s kubectl get -f 70-high-availability.yaml &> /dev/null; then
-    microk8s kubectl delete -f 70-high-availability.yaml
-    echo "✅ Alta disponibilidade removida"
-else
-    echo "⚠️ Arquivo 70-high-availability.yaml não encontrado ou já removido"
-fi
+# 1. Remover Redis Commander
+echo -e "${BLUE}1️⃣  Removendo Redis Commander...${NC}"
+kubectl delete -f "$SCRIPT_DIR/50-redis-commander.yaml" --ignore-not-found=true
+echo -e "${GREEN}✅ Redis Commander removido${NC}"
 echo ""
 
-echo "2️⃣ Removendo monitoramento..."
-if microk8s kubectl get -f 60-monitoring.yaml &> /dev/null; then
-    microk8s kubectl delete -f 60-monitoring.yaml
-    echo "✅ Monitoramento removido"
-else
-    echo "⚠️ Arquivo 60-monitoring.yaml não encontrado ou já removido"
-fi
-echo ""
-
-echo "3️⃣ Removendo backup..."
-if microk8s kubectl get -f 50-backup-cronjob.yaml &> /dev/null; then
-    microk8s kubectl delete -f 50-backup-cronjob.yaml
-    echo "✅ Backup removido"
-else
-    echo "⚠️ Arquivo 50-backup-cronjob.yaml não encontrado ou já removido"
-fi
-echo ""
-
-echo "4️⃣ Removendo configuração DNS..."
-if microk8s kubectl get -f 43-dns-config.yaml &> /dev/null; then
-    microk8s kubectl delete -f 43-dns-config.yaml
-    echo "✅ Configuração DNS removida"
-else
-    echo "⚠️ Arquivo 43-dns-config.yaml não encontrado ou já removido"
-fi
-echo ""
-
-echo "6️⃣ Removendo job de configuração de replicação..."
-if microk8s kubectl get -f 31-replication-setup-job.yaml &> /dev/null; then
-    microk8s kubectl delete -f 31-replication-setup-job.yaml
-    echo "✅ Job de replicação removido"
-else
-    echo "⚠️ Arquivo 31-replication-setup-job.yaml não encontrado ou já removido"
-fi
-echo ""
-
-echo "7️⃣ Removendo StatefulSets Redis..."
-if microk8s kubectl get -f 22-replica-statefulset.yaml &> /dev/null; then
-    microk8s kubectl delete -f 22-replica-statefulset.yaml
-    echo "✅ StatefulSet das réplicas removido"
-else
-    echo "⚠️ Arquivo 22-replica-statefulset.yaml não encontrado ou já removido"
-fi
-
-if microk8s kubectl get -f 21-master-statefulset.yaml &> /dev/null; then
-    microk8s kubectl delete -f 21-master-statefulset.yaml
-    echo "✅ StatefulSet do master removido"
-else
-    echo "⚠️ Arquivo 21-master-statefulset.yaml não encontrado ou já removido"
-fi
-microk8s kubectl delete -f 31-ingress.yaml --ignore-not-found=true
+# 2. Remover StatefulSets
+echo -e "${BLUE}2️⃣  Removendo StatefulSets Redis...${NC}"
+kubectl delete -f "$SCRIPT_DIR/22-replica-statefulset-k3s.yaml" --ignore-not-found=true
+kubectl delete -f "$SCRIPT_DIR/21-master-statefulset-k3s.yaml" --ignore-not-found=true
+echo -e "${GREEN}✅ StatefulSets removidos${NC}"
 echo ""
 
 # Aguardar pods serem terminados
-echo "⏳ Aguardando pods serem terminados..."
-sleep 15
+echo -e "${YELLOW}⏳ Aguardando pods serem terminados...${NC}"
+sleep 10
 echo ""
 
-echo "8️⃣ Removendo Services..."
-if microk8s kubectl get -f 13-master-svc.yaml &> /dev/null; then
-    microk8s kubectl delete -f 13-master-svc.yaml
-    echo "✅ Service do master removido"
-else
-    echo "⚠️ Arquivo 13-master-svc.yaml não encontrado ou já removido"
-fi
-
-if microk8s kubectl get -f 12-client-svc.yaml &> /dev/null; then
-    microk8s kubectl delete -f 12-client-svc.yaml
-    echo "✅ Service do cliente removido"
-else
-    echo "⚠️ Arquivo 12-client-svc.yaml não encontrado ou já removido"
-fi
-
-if microk8s kubectl get -f 11-headless-svc.yaml &> /dev/null; then
-    microk8s kubectl delete -f 11-headless-svc.yaml
-    echo "✅ Service headless removido"
-else
-    echo "⚠️ Arquivo 11-headless-svc.yaml não encontrado ou já removido"
-fi
+# 3. Remover Services
+echo -e "${BLUE}3️⃣  Removendo Services...${NC}"
+kubectl delete -f "$SCRIPT_DIR/13-master-svc-k3s.yaml" --ignore-not-found=true
+kubectl delete -f "$SCRIPT_DIR/12-client-svc.yaml" --ignore-not-found=true
+kubectl delete -f "$SCRIPT_DIR/11-headless-svc.yaml" --ignore-not-found=true
+echo -e "${GREEN}✅ Services removidos${NC}"
 echo ""
 
-echo "9️⃣ Removendo ConfigMaps..."
-if microk8s kubectl get -f 10-configmap.yaml &> /dev/null; then
-    microk8s kubectl delete -f 10-configmap.yaml
-    echo "✅ ConfigMaps removidos"
-else
-    echo "⚠️ Arquivo 10-configmap.yaml não encontrado ou já removido"
-fi
+# 4. Remover ConfigMap
+echo -e "${BLUE}4️⃣  Removendo ConfigMap...${NC}"
+kubectl delete -f "$SCRIPT_DIR/10-configmap.yaml" --ignore-not-found=true
+echo -e "${GREEN}✅ ConfigMap removido${NC}"
 echo ""
 
-echo "🔟 Removendo certificados TLS..."
-if microk8s kubectl get -f 02-tls-certificates.yaml &> /dev/null; then
-    microk8s kubectl delete -f 02-tls-certificates.yaml
-    echo "✅ Certificados TLS removidos"
-else
-    echo "⚠️ Arquivo 02-tls-certificates.yaml não encontrado ou já removido"
-fi
+# 5. Remover TLS Certificates
+echo -e "${BLUE}5️⃣  Removendo certificados TLS...${NC}"
+kubectl delete -f "$SCRIPT_DIR/02-tls-certificates-k3s.yaml" --ignore-not-found=true
+echo -e "${GREEN}✅ Certificados TLS removidos${NC}"
 echo ""
 
-echo "1️⃣1️⃣ Removendo RBAC..."
-if microk8s kubectl get -f 03-rbac.yaml &> /dev/null; then
-    microk8s kubectl delete -f 03-rbac.yaml
-    echo "✅ RBAC removido"
-else
-    echo "⚠️ Arquivo 03-rbac.yaml não encontrado ou já removido"
-fi
+# 6. Remover RBAC e Secrets
+echo -e "${BLUE}6️⃣  Removendo RBAC e Secrets...${NC}"
+kubectl delete -f "$SCRIPT_DIR/03-rbac.yaml" --ignore-not-found=true
+kubectl delete -f "$SCRIPT_DIR/01-secret.yaml" --ignore-not-found=true
+echo -e "${GREEN}✅ RBAC e Secrets removidos${NC}"
 echo ""
 
-echo "1️⃣2️⃣ Removendo secrets..."
-if microk8s kubectl get -f 01-secret.yaml &> /dev/null; then
-    microk8s kubectl delete -f 01-secret.yaml
-    echo "✅ Secrets removidos"
-else
-    echo "⚠️ Arquivo 01-secret.yaml não encontrado ou já removido"
-fi
-
-# Remover secrets gerados por Jobs (podem ficar órfãos)
-echo "1️⃣2️⃣.1 Removendo secrets gerados por Jobs (se existirem)..."
-microk8s kubectl -n redis delete secret redis-proxy-tls --ignore-not-found
-microk8s kubectl -n redis delete secret redis-ca-key-pair --ignore-not-found
-
-# Remover recursos opcionais aplicados manualmente
-echo "🧹 Removendo recursos opcionais aplicados manualmente (se existirem)..."
-for f in 40-external-access.yaml 41-external-access-master-replica.yaml 20-statefulset.yaml 30-bootstrap-job.yaml; do
-  if microk8s kubectl get -f "$f" &> /dev/null; then
-      microk8s kubectl delete -f "$f"
-      echo "✅ $f removido"
-  else
-      echo "⚠️ $f não encontrado ou já removido"
-  fi
-done
-echo ""
-
-# Verificar se ainda há recursos no namespace
-echo "🔍 Verificando recursos restantes..."
-REMAINING=$(microk8s kubectl -n redis get all --no-headers 2>/dev/null | wc -l)
+# Verificar recursos restantes
+echo -e "${BLUE}🔍 Verificando recursos restantes...${NC}"
+REMAINING=$(kubectl -n $NAMESPACE get all --no-headers 2>/dev/null | wc -l)
 if [ "$REMAINING" -gt 0 ]; then
-    echo "⚠️ Ainda existem $REMAINING recursos no namespace:"
-    microk8s kubectl -n redis get all
+    echo -e "${YELLOW}⚠️  Ainda existem $REMAINING recursos no namespace:${NC}"
+    kubectl -n $NAMESPACE get all
     echo ""
-    read -p "🗑️ Deseja remover o namespace completo (remove TUDO)? (y/N): " -n 1 -r
+    read -p "🗑️  Deseja remover o namespace completo (remove TUDO incluindo PVCs)? (y/N): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        echo "🗑️ Removendo namespace completo..."
-        microk8s kubectl delete namespace redis
-        echo "✅ Namespace redis removido completamente"
+        echo -e "${BLUE}🗑️  Removendo namespace completo...${NC}"
+        kubectl delete namespace $NAMESPACE
+        echo -e "${GREEN}✅ Namespace $NAMESPACE removido completamente${NC}"
     else
-        echo "⚠️ Namespace mantido com recursos restantes"
-        read -p "🧹 Deseja remover os PVCs do namespace 'redis'? (y/N): " -n 1 -r REPLY2
+        echo -e "${YELLOW}⚠️  Namespace mantido com recursos restantes${NC}"
+        read -p "🧹 Deseja remover os PVCs do namespace '$NAMESPACE'? (y/N): " -n 1 -r REPLY2
         echo
         if [[ $REPLY2 =~ ^[Yy]$ ]]; then
-            microk8s kubectl -n redis delete pvc --all
-            echo "✅ PVCs removidos"
+            kubectl -n $NAMESPACE delete pvc --all
+            echo -e "${GREEN}✅ PVCs removidos${NC}"
         fi
     fi
 else
-    echo "1️⃣3️⃣ Removendo namespace..."
-    microk8s kubectl delete -f 00-namespace.yaml
-    echo "✅ Namespace removido"
+    echo -e "${BLUE}7️⃣  Removendo namespace...${NC}"
+    kubectl delete -f "$SCRIPT_DIR/00-namespace.yaml" --ignore-not-found=true
+    echo -e "${GREEN}✅ Namespace removido${NC}"
 fi
 echo ""
 
 # Verificação final
-echo "🔍 Verificação final..."
-if microk8s kubectl get namespace redis &> /dev/null; then
-    echo "⚠️ Namespace 'redis' ainda existe com alguns recursos"
-    microk8s kubectl -n redis get all 2>/dev/null || echo "Namespace vazio"
+echo -e "${BLUE}🔍 Verificação final...${NC}"
+if kubectl get namespace $NAMESPACE &> /dev/null; then
+    echo -e "${YELLOW}⚠️  Namespace '$NAMESPACE' ainda existe com alguns recursos${NC}"
+    kubectl -n $NAMESPACE get all 2>/dev/null || echo "Namespace vazio"
 else
-    echo "✅ Namespace 'redis' removido completamente"
+    echo -e "${GREEN}✅ Namespace '$NAMESPACE' removido completamente${NC}"
 fi
 echo ""
 
-echo "🎉 Remoção concluída!"
+echo -e "${GREEN}🎉 Remoção concluída!${NC}"
 echo ""
-echo "📋 Limpeza adicional recomendada:"
-echo "1. Remover entradas DNS do arquivo hosts:"
+echo -e "${BLUE}📋 Limpeza adicional recomendada:${NC}"
+echo "1. Remover entradas DNS locais, se criadas (hosts):"
 echo "   - redis.home.arpa"
-echo "   - redis-proxy.home.arpa"
+echo "   - redis-stats.home.arpa"
 echo ""
 echo "2. Verificar se não há PersistentVolumes órfãos:"
-echo "   microk8s kubectl get pv"
+echo "   kubectl get pv"
 echo ""
-echo "📚 Consulte o README.md para reinstalação se necessário."
+echo -e "${BLUE}📚 Consulte o README.md para reinstalação se necessário.${NC}"

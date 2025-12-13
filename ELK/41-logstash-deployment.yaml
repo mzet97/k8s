@@ -21,6 +21,17 @@ spec:
         - name: logstash
           image: docker.elastic.co/logstash/logstash:7.17.16
           imagePullPolicy: IfNotPresent
+          env:
+            - name: ELASTICSEARCH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: elastic-credentials
+                  key: username
+            - name: ELASTICSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elastic-credentials
+                  key: password
           ports:
             - name: beats
               containerPort: 5044

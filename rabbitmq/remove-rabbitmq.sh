@@ -62,13 +62,11 @@ fi
 echo "🚀 Removendo recursos (ordem reversa)..."
 echo ""
 
-# Remover Ingress e monitoramento
-echo "1️⃣ Removendo Ingress e monitoramento..."
+# Remover Ingress e LoadBalancer
+echo "1️⃣ Removendo Ingress e LoadBalancer..."
 $KUBECTL_BIN delete -f 30-management-ingress.yaml --ignore-not-found=true
-$KUBECTL_BIN delete -f 31-amqp-ingress.yaml --ignore-not-found=true
-$KUBECTL_BIN delete -f 61-prometheus-rules.yaml --ignore-not-found=true
-$KUBECTL_BIN delete -f 60-monitoring.yaml --ignore-not-found=true
-echo "✅ Ingress e monitoramento removidos"
+$KUBECTL_BIN delete -f 31-rabbitmq-loadbalancer.yaml --ignore-not-found=true
+echo "✅ Ingress e LoadBalancer removidos"
 echo ""
 
 # Remover NetworkPolicy
@@ -90,7 +88,6 @@ echo ""
 
 # Remover Services
 echo "4️⃣ Removendo Services..."
-$KUBECTL_BIN delete -f 14-nodeport-svc.yaml --ignore-not-found=true
 $KUBECTL_BIN delete -f 13-management-svc.yaml --ignore-not-found=true
 $KUBECTL_BIN delete -f 12-client-svc.yaml --ignore-not-found=true
 $KUBECTL_BIN delete -f 11-headless-svc.yaml --ignore-not-found=true
@@ -116,13 +113,6 @@ $KUBECTL_BIN delete -f 01-secret.yaml --ignore-not-found=true
 echo "✅ RBAC e secrets removidos"
 echo ""
 
-# Remover recursos opcionais não aplicados no fluxo básico
-echo "🧹 Removendo recursos opcionais (se existirem)..."
-for f in 41-pod-disruption-budget.yaml 42-horizontal-pod-autoscaler.yaml 43-vertical-pod-autoscaler.yaml 50-federation-config.yaml 51-disaster-recovery-config.yaml 52-cluster-crd.yaml 53-performance-tuning.yaml 54-persistent-volumes.yaml 55-backup-automation.yaml 56-environment-config.yaml; do
-  $KUBECTL_BIN delete -f "$f" --ignore-not-found=true || true
-done
-echo "✅ Recursos opcionais removidos (quando presentes)"
-echo ""
 
 # Verificar recursos restantes
 echo "🔍 Verificando recursos restantes..."

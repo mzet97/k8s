@@ -11,7 +11,7 @@ O **MinIO** (S3-compatible storage) está disponível em:
 
 Para acessar o console web:
 - **Usuário**: `admin`
-- **Senha**: `password123`
+- **Senha**: `Admin@123`
 
 ## 📋 Informações da Instalação
 
@@ -54,7 +54,7 @@ Add-Content C:\Windows\System32\drivers\etc\hosts "192.168.1.51 minio-s3.home.ar
 1. Abra o navegador
 2. Acesse: https://minio-console.home.arpa/
 3. Aceite o certificado autoassinado (é esperado)
-4. Login: `admin` / `password123`
+4. Login: `admin` / `Admin@123`
 
 ### Método 2: MinIO Client (mc)
 
@@ -75,7 +75,7 @@ brew install minio/stable/mc
 **Configurar alias**:
 ```bash
 # Adicionar servidor MinIO
-mc alias set myminio https://minio-s3.home.arpa admin password123 --insecure
+mc alias set myminio https://minio-s3.home.arpa admin Admin@123 --insecure
 
 # Testar conexão
 mc admin info myminio --insecure
@@ -104,7 +104,7 @@ EOF
 cat > ~/.aws/credentials <<EOF
 [default]
 aws_access_key_id = admin
-aws_secret_access_key = password123
+aws_secret_access_key = Admin@123
 EOF
 ```
 
@@ -181,7 +181,7 @@ https://minio-s3.home.arpa
 
 **Credenciais**:
 - Access Key: `admin`
-- Secret Key: `password123`
+- Secret Key: `Admin@123`
 
 ### Exemplos de Código
 
@@ -195,7 +195,7 @@ s3 = boto3.client(
     's3',
     endpoint_url='https://minio-s3.home.arpa',
     aws_access_key_id='admin',
-    aws_secret_access_key='password123',
+    aws_secret_access_key='Admin@123',
     config=Config(signature_version='s3v4'),
     verify=False  # Aceitar certificado autoassinado
 )
@@ -228,7 +228,7 @@ from minio.error import S3Error
 client = Minio(
     'minio-s3.home.arpa',
     access_key='admin',
-    secret_key='password123',
+    secret_key='Admin@123',
     secure=True,  # HTTPS
     cert_check=False  # Aceitar certificado autoassinado
 )
@@ -265,7 +265,7 @@ const minioClient = new Minio.Client({
     port: 443,
     useSSL: true,
     accessKey: 'admin',
-    secretKey: 'password123'
+    secretKey: 'Admin@123'
 });
 
 // Listar buckets
@@ -299,7 +299,7 @@ public class MinioExample {
         // Criar cliente
         MinioClient minioClient = MinioClient.builder()
             .endpoint("https://minio-s3.home.arpa")
-            .credentials("admin", "password123")
+            .credentials("admin", "Admin@123")
             .build();
 
         try {
@@ -343,7 +343,7 @@ import (
 func main() {
     // Criar cliente
     minioClient, err := minio.New("minio-s3.home.arpa", &minio.Options{
-        Creds:  credentials.NewStaticV4("admin", "password123", ""),
+        Creds:  credentials.NewStaticV4("admin", "Admin@123", ""),
         Secure: true,
     })
     if err != nil {
@@ -579,7 +579,7 @@ http://minio-service.minio.svc.cluster.local:9000
 ✅ MinIO instalado com sucesso
 ✅ Console: https://minio-console.home.arpa/
 ✅ S3 API: https://minio-s3.home.arpa/
-✅ Login: admin / password123
+✅ Login: admin / Admin@123
 ✅ TLS configurado com cert-manager
 ✅ Persistência: 100Gi
 ✅ Compatível com S3 API

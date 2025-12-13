@@ -38,6 +38,13 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: ELASTIC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elastic-credentials
+                  key: password
+            - name: xpack.security.enabled
+              value: "true"
           volumeMounts:
             - name: es-config
               mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
