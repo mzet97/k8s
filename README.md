@@ -1,280 +1,137 @@
-# Kubernetes Cluster Configuration
-
-Este repositório contém a configuração completa para um cluster Kubernetes de alta disponibilidade com monitoramento, backup, e gerenciamento declarativo de aplicações.
-
-## 🏗️ Arquitetura
-
-O cluster é configurado com os seguintes componentes:
-
-- **Backup**: Velero para backup e recuperação de desastres
-- **Cache**: Redis High Availability com Sentinel e Cluster
-- **Monitoramento**: Prometheus Federation para alta disponibilidade
-- **GitOps**: ArgoCD com ApplicationSets para gerenciamento declarativo
-
-## 📋 Pré-requisitos
-
-- Kubernetes cluster (1.20+)
-- kubectl ou microk8s configurado
-- Storage class disponível
-- Ingress controller (nginx ou similar)
-- cert-manager para TLS
-
-### ArgoCD ApplicationSets
-
-- **Projetos**: Organização por domínios (infrastructure, monitoring, data, backup)
-- **ApplicationSets**: Gerenciamento dinâmico de aplicações
-- **GitOps**: Sincronização automática com repositório Git
-- **Multi-ambiente**: Suporte para múltiplos ambientes
-- **Auto-sync**: Sincronização e auto-cura automáticas
-
-## 🚀 Instalação Rápida
-
-### 1. Configurar Cluster Kubernetes
-
-```bash
-# Verificar se o cluster está rodando
-kubectl get nodes
-
-# Criar namespaces necessários
-kubectl create namespace monitoring
-kubectl create namespace velero
-kubectl create namespace redis
-kubectl create namespace argocd
-```
-
-### 2. Instalar ArgoCD com ApplicationSets
-
-```bash
-# Configurar ArgoCD e ApplicationSets
-./scripts/setup-argocd-appsets.sh
-
-# Acessar ArgoCD
-# URL: https://<external-ip>
-# Usuário: admin
-# Senha: obtida via script
-```
-
-### 3. Instalar Prometheus Federation
-
-```bash
-# Configurar federation
-./scripts/setup-prometheus-federation.sh setup
-
-# Verificar status
-./scripts/setup-prometheus-federation.sh status
-
-# Testar federation
-./scripts/setup-prometheus-federation.sh test
-```
-
-### 4. Instalar Redis HA
-
-```bash
-# Configurar Redis Sentinel
-./scripts/setup-redis-ha.sh setup-sentinel
-
-# Configurar Redis Cluster
-./scripts/setup-redis-ha.sh setup-cluster
-
-# Testar conectividade
-./scripts/setup-redis-ha.sh test
-```
-
-### 5. Instalar Velero
-
-```bash
-# Configurar backup
-./scripts/setup-backup.sh setup
-
-# Verificar status
-./scripts/setup-backup.sh status
-
-# Executar backup de teste
-./scripts/setup-backup.sh test
-```
-
-## 📁 Estrutura do Projeto
-
-```
-k8s/
-├── applications/           # Aplicações do cluster
-│   └── redis-ha/          # Configuração Redis HA
-├── infrastructure/         # Infraestrutura base
-│   ├── backup/            # Configuração Velero
-│   │   └── velero/
-│   │       ├── velero-config.yaml
-│   │       └── velero-deployment.yaml
-│   └── monitoring/        # Configuração Prometheus
-│       └── prometheus/
-│           ├── prometheus-config.yaml
-│           └── prometheus-deployment.yaml
-├── argocd/               # Configuração ArgoCD
-│   ├── applicationsets.yaml
-│   ├── projects.yaml
-│   └── setup-argocd-appsets.sh
-├── scripts/               # Scripts de automação
-│   ├── setup-backup.sh
-│   ├── setup-redis-ha.sh
-│   ├── setup-prometheus-federation.sh
-│   └── setup-argocd-appsets.sh
-├── docs/                  # Documentação
-│   ├── backup.md
-│   ├── redis-ha.md
-│   ├── prometheus-federation.md
-│   └── argocd-appsets.md
-├── tests/                 # Testes e validações
-│   └── validate-cluster.sh
-└── tests/
-    └── validate-cluster.sh
-```
-
-## 📊 Monitoramento
-
-### Prometheus Federation
-
-- **Global**: http://prometheus-global.seu-dominio.com
-- **Local 1**: http://prometheus-local-1.seu-dominio.com
-- **Local 2**: http://prometheus-local-2.seu-dominio.com
-
-### Métricas Principais
-
-- Disponibilidade do cluster: `up`
-- Uso de CPU: `node_cpu_seconds_total`
-- Uso de memória: `node_memory_MemAvailable_bytes`
-- Uso de disco: `node_filesystem_avail_bytes`
-- Métricas federadas: `job:*`
-
-## 🔒 Segurança
-
-### Autenticação
-
-- **Prometheus**: Autenticação básica (admin/prom-operator)
-- **ArgoCD**: Autenticação via secret inicial
-- **Redis**: Autenticação desabilitada por padrão (configurar conforme necessário)
-
-### Network Policies
-
-Recomenda-se criar Network Policies para restringir o acesso entre componentes.
-
-## 🧪 Testes
-
-### Validação do Cluster
-
-```bash
-# Executar testes completos
-./tests/validate-cluster.sh
-
-# Testar componentes individualmente
-./scripts/setup-backup.sh test
-./scripts/setup-redis-ha.sh test
-./scripts/setup-prometheus-federation.sh test
-```
-
-### Testes de Disponibilidade
-
-- Failover do Redis Sentinel
-- Failover do Redis Cluster
-- Federation do Prometheus
-- Backup e restore com Velero
-
-## 🔧 Manutenção
-
-### Backup Manual
-
-```bash
-# Backup do cluster
-velero backup create manual-backup-$(date +%Y%m%d-%H%M%S)
-
-# Listar backups
-velero backup get
-
-# Restaurar backup
-velero restore create --from-backup <backup-name>
-```
-
-### Upgrade de Componentes
-
-```bash
-# Atualizar imagens
-kubectl set image deployment/prometheus-global prometheus=prom/prometheus:v2.45.0 -n monitoring
-
-# Verificar rollout
-kubectl rollout status deployment/prometheus-global -n monitoring
-```
-
-## 🚨 Troubleshooting
-
-### Problemas Comuns
-
-1. **Pods não iniciam**
-   ```bash
-   kubectl describe pod <nome-do-pod>
-   kubectl logs <nome-do-pod>
-   ```
-
-2. **Federation não funciona**
-   ```bash
-   ./scripts/setup-prometheus-federation.sh diagnosis
-   ```
-
-3. **Redis HA falha**
-   ```bash
-   ./scripts/setup-redis-ha.sh check-status
-   ```
-
-4. **ArgoCD não sincroniza**
-   ```bash
-   kubectl get applications -n argocd
-   kubectl describe application <nome> -n argocd
-   ```
-
-### Logs e Diagnóstico
-
-Cada script possui opções de diagnóstico:
-
-```bash
-# Diagnóstico detalhado Prometheus
-./scripts/setup-prometheus-federation.sh diagnosis
-
-# Status detalhado Redis
-./scripts/setup-redis-ha.sh check-status
-
-# Logs do Velero
-kubectl logs -n velero deployment/velero
-```
+# Kubernetes Homelab (K3s)
+
+Cluster Kubernetes K3s para homelab com stack completo de serviços.
+
+## 🚀 Quick Start
+
+### Acesso Rápido aos Serviços
+📖 **[Ver Guia de Acesso Rápido](ACESSO_RAPIDO.md)** - Todas as URLs, usuários e senhas
+
+| Serviço | URL | Docs |
+|---------|-----|------|
+| **Grafana** | https://grafana.home.arpa | [/monitoring](monitoring/) |
+| **Prometheus** | https://prometheus.home.arpa | [/monitoring](monitoring/) |
+| **Kibana** | https://kibana.home.arpa | [/ELK](ELK/) |
+| **RabbitMQ** | https://rabbitmq-mgmt.home.arpa | [/rabbitmq](rabbitmq/) |
+| **MinIO** | https://minio-console.home.arpa | [/minio](minio/) |
+| **Redis Commander** | https://redis-stats.home.arpa | [/redis](redis/) |
+
+**Senha padrão**: `Admin@123` (maioria dos serviços)
+**IP do Traefik**: `192.168.1.51`
+
+## 📦 Componentes Instalados
+
+### Core Infrastructure
+- **K3s**: Kubernetes lightweight distribution
+- **Traefik**: Ingress controller e LoadBalancer (192.168.1.51)
+- **cert-manager**: Gerenciamento de certificados TLS
+- **local-path-provisioner**: Storage class padrão
+
+### Monitoring & Logging
+- **Prometheus**: Coleta de métricas
+- **Grafana**: Visualização e dashboards
+- **Loki**: Agregação de logs
+- **node-exporter**: Métricas de nodes
+- **kube-state-metrics**: Métricas do Kubernetes
+- **Elasticsearch**: Busca e análise de logs
+- **Kibana**: Visualização de logs
+- **Logstash**: Processamento de logs
+- **Filebeat**: Coleta de logs
+
+### Databases & Message Queues
+- **Redis**: In-memory database (1 master + 3 replicas)
+- **RabbitMQ**: Message broker AMQP
+- **MinIO**: Object storage (S3-compatible)
+
+### Management
+- **Portainer**: Gerenciamento visual do cluster
 
 ## 📚 Documentação
 
-- [Backup com Velero](docs/backup.md)
-- [Redis High Availability](docs/redis-ha.md)
-- [Prometheus Federation](docs/prometheus-federation.md)
-- [ArgoCD ApplicationSets](docs/argocd-appsets.md)
+### Guias de Acesso
+- **[ACESSO_RAPIDO.md](ACESSO_RAPIDO.md)** - ⭐ URLs, usuários e senhas de todos os serviços
+- [ACESSO_COMPLETO.md](ACESSO_COMPLETO.md) - Guia detalhado de acesso
+- [ACESSO_REDE_EXTERNA.md](ACESSO_REDE_EXTERNA.md) - Configuração para acesso externo
 
-## 🤝 Contribuição
+### Por Serviço
+- [Monitoring (Prometheus + Grafana)](monitoring/README.md)
+- [ELK Stack (Elasticsearch + Kibana)](ELK/README.md)
+- [Redis](redis/README.md)
+- [RabbitMQ](rabbitmq/README.md)
+- [MinIO](minio/README.md)
+- [K3s Setup](k3s-setup/README.md)
+- [Certificados](certs/README.md)
 
-1. Faça fork do projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/nova-feature`)
-3. Commit suas mudanças (`git commit -am 'Adiciona nova feature'`)
-4. Push para a branch (`git push origin feature/nova-feature`)
-5. Crie um Pull Request
+### Guias Técnicos
+- [Guia DNS Completo](GUIA_DNS_COMPLETO.md) - Configuração DNS detalhada
+- [Padrões DNS](DNS-STANDARDS.md) - Convenções de nomenclatura
+- [Como Usar Scripts](COMO_USAR_SCRIPTS.md) - Guia de scripts de instalação
 
-## 📝 Licença
+## 🔧 Comandos Úteis
 
-Este projeto está licenciado sob a licença MIT - veja o arquivo LICENSE para detalhes.
+### Status Geral
+```bash
+# Ver todos os pods
+kubectl get pods --all-namespaces
 
-## 🆘 Suporte
+# Ver todos os services
+kubectl get svc --all-namespaces
 
-Para suporte e dúvidas:
+# Ver todos os ingress
+kubectl get ingress --all-namespaces
+```
 
-1. Verifique a documentação em `docs/`
-2. Execute os testes de validação
-3. Verifique os logs dos componentes
-4. Abra uma issue no repositório
+### Por Namespace
+```bash
+kubectl get all -n monitoring   # Prometheus, Grafana, Loki
+kubectl get all -n elk          # Elasticsearch, Kibana
+kubectl get all -n rabbitmq     # RabbitMQ
+kubectl get all -n minio        # MinIO
+kubectl get all -n redis        # Redis
+```
 
-## 🔮 Roadmap
+## 🚨 Troubleshooting Rápido
 
-- [ ] Adicionar Grafana para visualização
-- [ ] Implementar Alertmanager
-- [ ] Adicionar ElasticSearch para logs
-- [ ] Implementar Istio Service Mesh
-- [ ] Adicionar testes automatizados CI/CD
+```bash
+# 1. Verificar pod
+kubectl get pods -n <namespace>
+
+# 2. Ver logs
+kubectl logs -n <namespace> <pod-name>
+
+# 3. Verificar eventos
+kubectl get events -n <namespace> --sort-by='.lastTimestamp'
+
+# 4. Verificar ingress
+kubectl get ingress -n <namespace>
+
+# 5. Verificar certificados
+kubectl get certificate -n <namespace>
+```
+
+Ver documentação completa de troubleshooting em [ACESSO_RAPIDO.md](ACESSO_RAPIDO.md#troubleshooting-rápido)
+
+## 🗂️ Estrutura do Repositório
+
+```
+.
+├── README.md                  # Este arquivo
+├── ACESSO_RAPIDO.md          # ⭐ Guia rápido de acesso
+├── monitoring/               # Prometheus + Grafana + Loki
+├── ELK/                      # Elasticsearch + Kibana + Logstash
+├── redis/                    # Redis master-replica
+├── rabbitmq/                 # RabbitMQ message broker
+├── minio/                    # MinIO object storage
+├── k3s-setup/               # Instalação e configuração K3s
+├── certs/                   # Certificados TLS
+└── archive/                 # Documentação arquivada
+```
+
+## 📄 Licença
+
+MIT
+
+---
+
+⚠️ **Nota**: Esta configuração é para **homelab/desenvolvimento**.
+Para produção, altere senhas e endureça a segurança!

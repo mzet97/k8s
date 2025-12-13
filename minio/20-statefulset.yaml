@@ -46,10 +46,6 @@ spec:
               key: rootPassword
         - name: MINIO_PROMETHEUS_AUTH_TYPE
           value: "public"
-        - name: MINIO_SERVER_URL
-          value: "https://minio-s3.home.arpa"
-        - name: MINIO_BROWSER_REDIRECT_URL
-          value: "https://minio-console.home.arpa"
         ports:
         - name: api
           containerPort: 9000

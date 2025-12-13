@@ -21,7 +21,21 @@
       "Bash(systemctl status:*)",
       "Bash(sudo chown:*)",
       "Bash(sudo chmod:*)",
-      "Bash(kubectl get:*)"
+      "Bash(kubectl get:*)",
+      "Bash(kubectl apply:*)",
+      "Bash(sudo kubectl:*)",
+      "Bash(curl:*)",
+      "Bash(timeout 5 curl:*)",
+      "Bash(python3:*)",
+      "Bash(timeout 10 curl:*)",
+      "Bash(sudo cat:*)",
+      "Bash(export KUBECONFIG=/etc/rancher/k3s/k3s.yaml:*)",
+      "Bash(sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl get:*)",
+      "Bash(sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl logs:*)",
+      "Bash(sudo KUBECONFIG=/etc/rancher/k3s/k3s.yaml kubectl exec:*)",
+      "Bash(git mv:*)",
+      "Bash(git add:*)",
+      "Bash(git rm:*)"
     ]
   }
 }

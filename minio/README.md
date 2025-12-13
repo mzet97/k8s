@@ -1,297 +1,350 @@
-# 🚀 **MinIO - Object Storage**
+# MinIO - Object Storage (K3s Homelab)
 
-## 📋 **Visão Geral**
+Armazenamento de objetos compatível com S3 para K3s.
 
-Este diretório contém as configurações para deploy do MinIO no Kubernetes, fornecendo armazenamento de objetos compatível com S3.
+## 🚀 Visão Rápida
 
-## 🚀 **Componentes Incluídos**
+- **Namespace**: `minio`
+- **StatefulSet**: `minio` com 1 réplica
+- **Console**: https://minio-console.home.arpa/
+- **S3 API**: https://minio-s3.home.arpa/
+- **Credenciais**: `admin` / `Admin@123`
+- **Armazenamento**: 100Gi
 
-- **MinIO Server**: Servidor de armazenamento de objetos
-- **MinIO Console**: Interface web para administração
-- **Certificados TLS**: Segurança com HTTPS
-- **Ingress**: Acesso externo configurado
-- **Volumes Persistentes**: Armazenamento durável
+## 📦 Componentes Instalados
 
-## 📦 **O que você terá após a instalação**
+### Services
+- `minio-service` (ClusterIP): Portas 9000, 9001
+- `minio-headless` (Headless): Para clustering
+- `minio-console` (ClusterIP): Console UI (9001)
 
-- ✅ **Armazenamento S3-compatible** completo
-- ✅ **Interface web** para gerenciamento
-- ✅ **API S3** para aplicações
-- ✅ **Buckets** e políticas de acesso
-- ✅ **Backup e versionamento** de objetos
-- ✅ **Certificados TLS** automáticos
+### Ingress
+- `minio-console-ingress`: https://minio-console.home.arpa/
+- `minio-s3-ingress`: https://minio-s3.home.arpa/
 
----
+### Volumes
+- **Data**: 100Gi (armazenamento de objetos)
 
-## 🛠️ **Instalação**
+### Segurança
+- TLS habilitado (cert-manager com local-ca)
+- Credenciais: admin/Admin@123
 
-### **Pré-requisitos**
-- Kubernetes cluster funcionando
-- cert-manager instalado
-- Ingress controller configurado
-- Volumes persistentes disponíveis
-
-```bash
-microk8s enable ingress
-microk8s enable cert-manager
-microk8s enable storage
-```
-
-### **Passo a passo:**
-
-1. **Aplicar as configurações:**
-   ```bash
-   # Aplicar namespace
-   kubectl apply -f 00-namespace.yaml
-   
-   # Aplicar todas as configurações
-   kubectl apply -f .
-   ```
-
-2. **Verificar a instalação:**
-   ```bash
-   kubectl get pods -n minio
-   kubectl get svc -n minio
-   kubectl get ingress -n minio
-   ```
-
-3. **Verificar certificados:**
-   ```bash
-   kubectl get certificates -n minio
-   ```
-
-4. **Verificar volumes:**
-   ```bash
-   kubectl get pvc -n minio
-   ```
-
----
-
-## 🌐 **Acesso Web**
-
-### **Configurar arquivo hosts**
-
-Adicione estas linhas ao arquivo hosts do Windows (`C:\Windows\System32\drivers\etc\hosts`):
-
-```
-192.168.1.100  minio-console.home.arpa
-192.168.1.100  minio-s3.home.arpa
-```
-
-### **URLs de Acesso**
-
-**MinIO Console (Administração):**
-- URL: `https://minio-console.home.arpa`
-- 🔐 **Login**: minioadmin / minioadmin (altere após primeiro acesso)
-- 🎛️ **Funcionalidades**: Gerenciamento de buckets, usuários, políticas
-
-**MinIO S3 API:**
-- URL: `https://minio-s3.home.arpa`
-- 🔗 **Endpoint**: Para aplicações e clientes S3
-- 📡 **Protocolos**: REST API compatível com Amazon S3
-
----
-
-## 🎯 **Primeiros Passos no MinIO**
-
-### **1. Acessar Console Web**
-1. Acesse `https://minio-console.home.arpa`
-2. Login: `minioadmin` / `minioadmin`
-3. **IMPORTANTE**: Altere a senha padrão
-4. Explore a interface de administração
-
-### **2. Criar Primeiro Bucket**
-1. Clique em "Buckets" → "Create Bucket"
-2. Digite o nome do bucket (ex: `my-app-data`)
-3. Configure políticas de acesso se necessário
-4. Clique em "Create Bucket"
-
-### **3. Upload de Arquivos**
-1. Selecione o bucket criado
-2. Clique em "Upload" → "Upload Files"
-3. Selecione arquivos do seu computador
-4. Monitore o progresso do upload
-
-### **4. Configurar Acesso via API**
-1. Vá em "Access Keys" → "Create Access Key"
-2. Anote o Access Key e Secret Key
-3. Use essas credenciais em suas aplicações
-4. Configure endpoint: `https://minio-s3.home.arpa`
-
----
-
-## 📁 **Arquivos Principais**
-
-| Arquivo | Descrição | Quando usar |
-|---------|-----------|-------------|
-| `00-namespace.yaml` | Namespace do MinIO | Sempre primeiro |
-| `20-minio-console-svc.yaml` | Service do Console | Para acesso interno |
-| `21-minio-console-ingress.yaml` | Ingress do Console | Para acesso web |
-| `22-minio-s3-ingress.yaml` | Ingress da API S3 | Para aplicações |
-| `23-minio-console-certificate.yaml` | Certificado do Console | Para HTTPS |
-| `24-minio-s3-certificate.yaml` | Certificado da API | Para HTTPS |
-
----
-
-## 🔧 **Configuração Avançada**
-
-### **Credenciais de Acesso**
-
-Para alterar as credenciais padrão, crie um Secret:
-
-```yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: minio-credentials
-  namespace: minio
-type: Opaque
-data:
-  MINIO_ROOT_USER: <base64-encoded-username>
-  MINIO_ROOT_PASSWORD: <base64-encoded-password>
-```
-
-### **Configuração de Buckets via CLI**
-
-Instale e configure o cliente `mc`:
+## 🛠️ Instalação
 
 ```bash
-# Instalar mc client
+cd /home/k8s1/k8s/minio
+
+# Método 1: Usar script de instalação
+./install-minio-k3s.sh
+
+# Método 2: Manual
+kubectl apply -f 00-namespace.yaml
+kubectl apply -f 03-rbac.yaml
+kubectl apply -f 01-secret.yaml
+kubectl apply -f 23-minio-console-certificate.yaml
+kubectl apply -f 24-minio-s3-certificate.yaml
+kubectl apply -f 11-headless-svc.yaml
+kubectl apply -f 12-client-svc.yaml
+kubectl apply -f 20-minio-console-svc.yaml
+kubectl apply -f 20-statefulset.yaml
+kubectl apply -f 21-minio-console-ingress.yaml
+kubectl apply -f 22-minio-s3-ingress.yaml
+```
+
+## 🔌 Acesso
+
+### Console Web
+- **URL**: https://minio-console.home.arpa/
+- **Usuário**: `admin`
+- **Senha**: `Admin@123`
+
+### S3 API Endpoints
+
+**Dentro do cluster Kubernetes**:
+```
+http://minio-service.minio.svc.cluster.local:9000
+```
+
+**De fora do cluster** (via Ingress):
+```
+https://minio-s3.home.arpa
+```
+
+## 💻 Exemplos de Uso
+
+### AWS CLI (s3cmd)
+```bash
+# Configurar AWS CLI
+aws configure set aws_access_key_id admin
+aws configure set aws_secret_access_key Admin@123
+aws configure set default.region us-east-1
+
+# Criar bucket
+aws --endpoint-url https://minio-s3.home.arpa s3 mb s3://my-bucket
+
+# Listar buckets
+aws --endpoint-url https://minio-s3.home.arpa s3 ls
+
+# Upload arquivo
+aws --endpoint-url https://minio-s3.home.arpa s3 cp file.txt s3://my-bucket/
+
+# Download arquivo
+aws --endpoint-url https://minio-s3.home.arpa s3 cp s3://my-bucket/file.txt .
+```
+
+### Python (boto3)
+```python
+import boto3
+from botocore.client import Config
+
+# Configurar cliente
+s3 = boto3.client(
+    's3',
+    endpoint_url='https://minio-s3.home.arpa',
+    aws_access_key_id='admin',
+    aws_secret_access_key='Admin@123',
+    config=Config(signature_version='s3v4'),
+    verify=False  # Para certificados self-signed
+)
+
+# Criar bucket
+s3.create_bucket(Bucket='my-bucket')
+
+# Listar buckets
+response = s3.list_buckets()
+for bucket in response['Buckets']:
+    print(bucket['Name'])
+
+# Upload arquivo
+s3.upload_file('file.txt', 'my-bucket', 'file.txt')
+
+# Download arquivo
+s3.download_file('my-bucket', 'file.txt', 'downloaded.txt')
+```
+
+### Node.js (AWS SDK)
+```javascript
+const AWS = require('aws-sdk');
+
+// Configurar cliente
+const s3 = new AWS.S3({
+    endpoint: 'https://minio-s3.home.arpa',
+    accessKeyId: 'admin',
+    secretAccessKey: 'Admin@123',
+    s3ForcePathStyle: true,
+    signatureVersion: 'v4',
+    sslEnabled: true
+});
+
+// Criar bucket
+s3.createBucket({ Bucket: 'my-bucket' }, (err, data) => {
+    if (err) console.error(err);
+    else console.log('Bucket criado:', data);
+});
+
+// Listar buckets
+s3.listBuckets((err, data) => {
+    if (err) console.error(err);
+    else console.log('Buckets:', data.Buckets);
+});
+```
+
+### MinIO Client (mc)
+```bash
+# Instalar mc
 wget https://dl.min.io/client/mc/release/linux-amd64/mc
 chmod +x mc
 sudo mv mc /usr/local/bin/
 
 # Configurar alias
-mc alias set myminio https://minio-s3.home.arpa minioadmin minioadmin
+mc alias set myminio https://minio-s3.home.arpa admin Admin@123
+
+# Listar buckets
+mc ls myminio
 
 # Criar bucket
 mc mb myminio/my-bucket
 
-# Definir política pública
+# Upload arquivo
+mc cp file.txt myminio/my-bucket/
+
+# Download arquivo
+mc cp myminio/my-bucket/file.txt .
+
+# Mirror diretório
+mc mirror /local/dir myminio/my-bucket/
+```
+
+## 🔧 Operações Comuns
+
+### Verificar Status
+```bash
+# Status dos pods
+kubectl get pods -n minio
+
+# Status dos services
+kubectl get svc -n minio
+
+# Status dos ingress
+kubectl get ingress -n minio
+
+# Logs
+kubectl logs -n minio minio-0 -f
+```
+
+### Gerenciar Buckets (via Console)
+1. Acesse https://minio-console.home.arpa/
+2. Login com admin/Admin@123
+3. Vá para "Buckets"
+4. Clique em "Create Bucket"
+5. Configure políticas de acesso
+
+### Alterar Credenciais
+```bash
+# Editar secret
+kubectl edit secret minio-creds -n minio
+
+# Ou recriar
+kubectl delete secret minio-creds -n minio
+kubectl create secret generic minio-creds \
+  --from-literal=rootUser=newuser \
+  --from-literal=rootPassword=newpassword \
+  -n minio
+
+# Reiniciar pod
+kubectl delete pod minio-0 -n minio
+```
+
+## 📊 Monitoramento
+
+### Métricas Prometheus
+MinIO expõe métricas no endpoint:
+```bash
+# Dentro do cluster
+curl http://minio-service.minio.svc.cluster.local:9000/minio/v2/metrics/cluster
+
+# Via ingress
+curl -k https://minio-s3.home.arpa/minio/v2/metrics/cluster
+```
+
+### Health Check
+```bash
+# Liveness
+curl -k https://minio-s3.home.arpa/minio/health/live
+
+# Readiness
+curl -k https://minio-s3.home.arpa/minio/health/ready
+```
+
+## 💾 Backup e Recovery
+
+### Backup via mc
+```bash
+# Mirror bucket para backup
+mc mirror myminio/my-bucket /backup/my-bucket
+
+# Mirror com versionamento
+mc mirror --preserve myminio/my-bucket /backup/my-bucket
+```
+
+### Restore via mc
+```bash
+# Restaurar de backup
+mc mirror /backup/my-bucket myminio/my-bucket
+```
+
+## 🚨 Troubleshooting
+
+### Pod não inicia
+```bash
+# Ver logs
+kubectl logs -n minio minio-0
+
+# Descrever pod
+kubectl describe pod -n minio minio-0
+
+# Verificar PVC
+kubectl get pvc -n minio
+```
+
+### Login não funciona
+```bash
+# Verificar credenciais
+kubectl get secret minio-creds -n minio -o jsonpath='{.data.rootUser}' | base64 -d
+kubectl get secret minio-creds -n minio -o jsonpath='{.data.rootPassword}' | base64 -d
+```
+
+### Erro de certificado
+```bash
+# Verificar certificados
+kubectl get certificate -n minio
+
+# Ver detalhes
+kubectl describe certificate minio-console-tls -n minio
+kubectl describe certificate minio-s3-tls -n minio
+```
+
+### Reiniciar
+```bash
+# Reiniciar pod
+kubectl delete pod minio-0 -n minio
+
+# Ou rollout restart
+kubectl rollout restart statefulset/minio -n minio
+```
+
+## 🔒 Segurança
+
+### Políticas de Bucket
+```bash
+# Via mc - Bucket público para leitura
+mc policy set download myminio/my-bucket
+
+# Bucket público para leitura/escrita
 mc policy set public myminio/my-bucket
 
-# Listar buckets
-mc ls myminio
+# Bucket privado
+mc policy set private myminio/my-bucket
+
+# Política customizada via Console
+# Acesse Console → Buckets → [seu bucket] → Access → Manage
 ```
 
-### **Políticas de Acesso**
+### Criar Usuários Adicionais
+Via Console Web:
+1. Acesse https://minio-console.home.arpa/
+2. Vá para "Identity" → "Users"
+3. Clique em "Create User"
+4. Defina Access Key e Secret Key
+5. Atribua políticas
 
-Configure políticas IAM personalizadas:
+## 🧹 Remoção
 
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": ["s3:GetObject"],
-      "Resource": ["arn:aws:s3:::my-bucket/*"]
-    }
-  ]
-}
-```
-
----
-
-## 🗑️ **Remoção**
-
-### **Remover completamente:**
 ```bash
-kubectl delete -f .
+# Remover tudo
+kubectl delete -f 22-minio-s3-ingress.yaml
+kubectl delete -f 21-minio-console-ingress.yaml
+kubectl delete -f 20-statefulset.yaml
+kubectl delete -f 20-minio-console-svc.yaml
+kubectl delete -f 12-client-svc.yaml
+kubectl delete -f 11-headless-svc.yaml
+kubectl delete -f 24-minio-s3-certificate.yaml
+kubectl delete -f 23-minio-console-certificate.yaml
+kubectl delete -f 01-secret.yaml
+kubectl delete -f 03-rbac.yaml
+kubectl delete -f 00-namespace.yaml
+
+# Ou deletar o namespace inteiro (cuidado: apaga os dados!)
+kubectl delete namespace minio
 ```
 
-### **Remover configuração de hosts:**
-Remova estas linhas do arquivo hosts:
-- `minio-console.home.arpa`
-- `minio-s3.home.arpa`
+## 📚 Referências
 
----
+- [MinIO Docs](https://min.io/docs/minio/kubernetes/upstream/)
+- [MinIO Client (mc)](https://min.io/docs/minio/linux/reference/minio-mc.html)
+- [S3 API Compatibility](https://min.io/docs/minio/linux/developers/s3-compatible-api.html)
+- [Python SDK (boto3)](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html)
 
-## ❓ **Perguntas Frequentes (FAQ)**
+## 📄 Licença
 
-### **Q: O que é MinIO?**
-**A:** MinIO é um servidor de armazenamento de objetos de alta performance, compatível com Amazon S3. Ideal para armazenar arquivos, backups, logs e dados não estruturados.
-
-### **Q: Como usar com aplicações?**
-**A:** Configure suas aplicações para usar o endpoint `https://minio-s3.home.arpa` com credenciais do MinIO.
-
-### **Q: Suporta versionamento?**
-**A:** Sim! MinIO suporta versionamento de objetos, retenção e lifecycle policies.
-
-### **Q: Como fazer backup?**
-**A:** Use `mc mirror` para sincronizar buckets ou configure replicação entre instâncias MinIO.
-
-### **Q: É compatível com AWS S3?**
-**A:** Sim! MinIO é 100% compatível com a API do Amazon S3.
-
-### **Q: Como integrar com aplicações Python?**
-**A:** Use a biblioteca `boto3` ou `minio-py` com endpoint personalizado.
-
-### **Q: Posso usar com Docker?**
-**A:** Sim! MinIO funciona perfeitamente em containers Docker e Kubernetes.
-
----
-
-## 🚀 **Próximos Passos**
-
-### **Para Iniciantes:**
-- Explore a interface web do Console
-- Crie seus primeiros buckets
-- Teste upload/download de arquivos
-- Configure políticas básicas de acesso
-
-### **Para Desenvolvedores:**
-- Integre com aplicações usando SDK S3
-- Configure lifecycle policies
-- Implemente versionamento
-- Use event notifications
-- Configure backup automático
-
-### **Para Administradores:**
-- Configure usuários e políticas IAM
-- Implemente backup e replicação
-- Configure monitoramento
-- Otimize performance e storage
-- Configure alta disponibilidade
-
----
-
-## 🤝 **Suporte e Contribuições**
-
-- 📖 **Documentação**: [MinIO Documentation](https://docs.min.io/)
-- 🐛 **Issues**: Reporte problemas no repositório
-- 💡 **Sugestões**: Contribua com melhorias
-- 🛠️ **SDKs**: Disponível para Python, Java, Go, .NET, JavaScript
-
----
-
-## 📊 **Informações Técnicas**
-
-### 🏗️ **Arquitetura:**
-- **MinIO Server**: Servidor de armazenamento distribuído
-- **MinIO Console**: Interface web para administração
-- **Volumes Persistentes**: Armazenamento durável no Kubernetes
-- **Certificados TLS**: Segurança via cert-manager
-- **Ingress**: Roteamento para Console e API S3
-- **Load Balancer**: Distribuição de carga entre pods
-- **IAM**: Sistema de identidade e políticas de acesso
-- **Event Notifications**: Webhooks para eventos de bucket
-
-### ⚙️ **Configurações padrão:**
-- **Protocolo**: HTTPS com certificados automáticos
-- **Retenção**: Configurável por bucket
-- **Versionamento**: Habilitado por bucket
-- **Backup**: Manual via mc client
-- **Replicação**: Configurável entre instâncias
-- **Armazenamento**: Volumes persistentes do Kubernetes
-- **Compressão**: Automática para objetos elegíveis
-- **Criptografia**: Server-side encryption disponível
-
-### 📝 **Notas Técnicas:**
-- Console acessível via `minio-console.home.arpa`
-- API S3 acessível via `minio-s3.home.arpa`
-- Certificados TLS automáticos via cert-manager
-- Para alterar hostnames: edite arquivos de Ingress e Certificate
-- Credenciais padrão: minioadmin/minioadmin (**ALTERE IMEDIATAMENTE!**)
-- Suporte a erasure coding para redundância
-- Compatible com ferramentas AWS CLI e SDKs
+MIT

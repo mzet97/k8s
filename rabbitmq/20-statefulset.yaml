@@ -36,8 +36,24 @@ spec:
           - sh
           - -c
           - |
+            set -e
+            echo "Fixing permissions..."
             chown -R 999:999 /var/lib/rabbitmq /var/log/rabbitmq
-            chmod -R 775 /var/lib/rabbitmq /var/log/rabbitmq
+            chmod -R 755 /var/lib/rabbitmq /var/log/rabbitmq
+
+            # Create .erlang.cookie with correct permissions if it doesn't exist
+            COOKIE_FILE="/var/lib/rabbitmq/.erlang.cookie"
+            if [ ! -f "$COOKIE_FILE" ]; then
+              echo "Creating .erlang.cookie..."
+              echo "$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)" > "$COOKIE_FILE"
+            fi
+
+            # Ensure correct ownership and permissions for .erlang.cookie
+            chown 999:999 "$COOKIE_FILE"
+            chmod 400 "$COOKIE_FILE"
+
+            echo "Permissions fixed successfully"
+            ls -la /var/lib/rabbitmq/
         securityContext:
           runAsUser: 0
         volumeMounts:

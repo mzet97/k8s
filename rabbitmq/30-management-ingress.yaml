@@ -23,6 +23,6 @@ spec:
         pathType: Prefix
         backend:
           service:
-            name: rabbitmq
+            name: rabbitmq-management
             port:
-              name: management
+              number: 15672

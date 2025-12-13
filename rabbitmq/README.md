@@ -1,986 +1,296 @@
-# RabbitMQ no Kubernetes (Homelab)
+# RabbitMQ no Kubernetes (K3s Homelab)
 
-Implantação funcional e simplificada do RabbitMQ em Kubernetes, alinhada ao padrão usado no Redis: foco em HA básico, acesso via NodePort e políticas de rede controladas para a LAN.
+Implantação simplificada do RabbitMQ em K3s para homelab.
 
 ## 🚀 Visão Rápida
 
-- Namespace: `rabbitmq` com label `name=rabbitmq`.
-- StatefulSet: `rabbitmq` com 3 réplicas e peer discovery via Kubernetes.
-- Services:
-  - `rabbitmq` (`ClusterIP`) portas `5672`, `5671`, `15672`, `15671`, `15692`, `15691`.
-  - `rabbitmq-headless` (headless) para cluster, mesmas portas de broker e internó.
-  - `rabbitmq-nodeport` (`NodePort`) expõe `5672`→`30672`, `5671`→`30671`, `15672`→`31672`, `15671`→`31671`.
-- NetworkPolicy: acesso permitido da LAN (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`) para AMQP e Management.
-- TLS: desabilitado no homelab (ConfigMap define sem SSL); habilitável depois.
+- **Namespace**: `rabbitmq`
+- **StatefulSet**: `rabbitmq` com 1 réplica
+- **Acesso Web**: https://rabbitmq-mgmt.home.arpa/
+- **Credenciais**: `admin` / `Admin@123`
 
-Credenciais padrão (laboratório):
-- Admin: `admin` / `Admin@123` (Secret `rabbitmq-admin`).
-- App: `appuser` / `Admin@123` (Secret `rabbitmq-app`).
+## 📦 Componentes Instalados
 
-## 📦 Manifests Principais
+### Services
+- `rabbitmq` (ClusterIP): Portas 5672, 5671, 15672, 15671, 15692, 15691
+- `rabbitmq-headless` (Headless): Para cluster interno
+- `rabbitmq-management` (ClusterIP): Management UI (15672, 15671)
+- `rabbitmq-lb` (LoadBalancer): Acesso externo via 192.168.1.51
 
-- `00-namespace.yaml`: cria `rabbitmq` com labels e quotas/limits.
-- `01-secret.yaml`: credenciais admin/app/monitoring.
-- `10-configmap.yaml`: `rabbitmq.conf` com peer discovery e métricas.
-- `11-headless-svc.yaml`: serviço headless para formar cluster.
-- `12-client-svc.yaml`: serviço interno para clientes.
-- `13-management-svc.yaml`: serviço interno para UI (ClusterIP).
-- `14-nodeport-svc.yaml`: expõe AMQP e Management para a LAN.
-- `40-network-policy.yaml`: regras de entrada/saída alinhadas ao homelab.
-- `41-pod-disruption-budget.yaml`: disponibilidade mínima.
-- `60-monitoring.yaml`, `61-prometheus-rules.yaml`: métricas e alertas (opcional).
+### Volumes
+- **Data**: 10Gi (persistência de mensagens)
+- **Logs**: 2Gi (logs do RabbitMQ)
+
+### Segurança
+- TLS habilitado (cert-manager com local-ca)
+- NetworkPolicy configurada
+- Usuários: admin, app, monitoring
 
 ## 🛠️ Instalação
 
 ```bash
 cd /home/k8s1/k8s/rabbitmq
 
-# Namespace, RBAC e segredos
+# 1. Namespace e RBAC
 kubectl apply -f 00-namespace.yaml
 kubectl apply -f 03-rbac.yaml
+
+# 2. Secrets
 kubectl apply -f 01-secret.yaml
 
-# Configuração e serviços
+# 3. Certificados TLS
+kubectl apply -f 02-tls-certificates.yaml
+
+# 4. Configuração
 kubectl apply -f 10-configmap.yaml
+
+# 5. Services
 kubectl apply -f 11-headless-svc.yaml
 kubectl apply -f 12-client-svc.yaml
 kubectl apply -f 13-management-svc.yaml
-kubectl apply -f 14-nodeport-svc.yaml
+kubectl apply -f 31-rabbitmq-loadbalancer.yaml
 
-# (Opcional) Ingress para UI com TLS
-kubectl apply -f 02-tls-certificates.yaml || true
-kubectl apply -f 30-management-ingress.yaml
-
-# StatefulSet
+# 6. StatefulSet
 kubectl apply -f 20-statefulset.yaml
 
-# NetworkPolicy e (opcional) monitoramento
+# 7. Ingress
+kubectl apply -f 30-management-ingress.yaml
+
+# 8. NetworkPolicy
 kubectl apply -f 40-network-policy.yaml
-kubectl apply -f 60-monitoring.yaml || true
-kubectl apply -f 61-prometheus-rules.yaml || true
 ```
 
-Verifique:
+## 🔌 Acesso
 
-```bash
-kubectl get pods -n rabbitmq -o wide
-kubectl get svc -n rabbitmq
-kubectl get ep -n rabbitmq
-kubectl describe netpol -n rabbitmq rabbitmq-network-policy
+### Management UI
+- **URL**: https://rabbitmq-mgmt.home.arpa/
+- **Usuário**: `admin`
+- **Senha**: `Admin@123`
+
+### Conexões AMQP
+
+**Dentro do cluster Kubernetes** (sem TLS):
+```
+amqp://admin:Admin@123@rabbitmq.rabbitmq.svc.cluster.local:5672/
 ```
 
-## 🔌 Testes
-
-Interno (no cluster):
-- AMQP: `amqp://admin:Admin@123@rabbitmq.rabbitmq.svc.cluster.local:5672/`
-- Management: `http://rabbitmq.rabbitmq.svc.cluster.local:15672/`
-
-Externo (LAN via NodePort):
-- AMQP: `amqp://admin:Admin@123@<NODE_IP>:30672/`
-- Management: `http://<NODE_IP>:31672/`
-
-Externo (DNS via Ingress):
-- UI: `https://rabbitmq-mgmt.home.arpa` (TLS; login `admin` / `Admin@123`).
-
-Passos rápidos:
-
-```bash
-# Mapear DNS local (se não tiver DNS interno)
-NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
-echo "$NODE_IP rabbitmq-mgmt.home.arpa" | sudo tee -a /etc/hosts
-
-# Validar resposta TLS do Ingress
-curl -Ik --resolve rabbitmq-mgmt.home.arpa:443:$NODE_IP https://rabbitmq-mgmt.home.arpa/
+**Dentro do cluster Kubernetes** (com TLS):
+```
+amqps://admin:Admin@123@rabbitmq.rabbitmq.svc.cluster.local:5671/
 ```
 
-Exemplos rápidos:
-
-```bash
-# Management UI via NodePort
-curl -I http://<NODE_IP>:31672
-
-# Checar cluster
-kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmqctl cluster_status
-
-# Listar filas
-kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmqctl list_queues name messages
+**De fora do cluster** (via LoadBalancer):
+```
+amqp://admin:Admin@123@192.168.1.51:5672/
+amqps://admin:Admin@123@192.168.1.51:5671/
 ```
 
-## 🔧 Troubleshooting
+## 💻 Exemplos de Código
 
-- Verifique eventos e logs:
-  - `kubectl describe pod -n rabbitmq rabbitmq-0`
-  - `kubectl logs -n rabbitmq rabbitmq-0`
-- Cheque endpoints e DNS:
-  - `kubectl get ep -n rabbitmq rabbitmq-headless`
-  - `kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmq-diagnostics ping`
-- NetworkPolicy: ajuste `ipBlock` conforme sua LAN.
-- TLS: inicialmente desabilitado; para habilitar, crie o Secret TLS e ajuste `rabbitmq.conf` com listeners SSL (`5671`) e caminhos de certs.
-
-## 🧹 Limpeza
-
-```bash
-kubectl delete -f 20-statefulset.yaml
-kubectl delete -f 14-nodeport-svc.yaml -f 13-management-svc.yaml -f 12-client-svc.yaml -f 11-headless-svc.yaml
-kubectl delete -f 30-management-ingress.yaml || true
-kubectl delete -f 10-configmap.yaml -f 03-rbac.yaml -f 01-secret.yaml
-# opcional
-kubectl delete -f 60-monitoring.yaml -f 61-prometheus-rules.yaml
-kubectl delete -f 02-tls-certificates.yaml || true
-kubectl delete namespace rabbitmq
-```
-
-## ℹ️ Notas Importantes
-
-- Senhas padrão são apenas para laboratório. Altere antes de uso real.
-- `emptyDir` é usado para dados e logs no homelab; para persistência, troque por PVCs.
-- Ingress para Management UI disponível em `rabbitmq-mgmt.home.arpa` e usa apenas o login da UI (sem Basic Auth do Nginx).
-- Os scripts de teste/backup foram removidos para reduzir complexidade; use `kubectl` e a UI.
-
-## 📄 Licença
-
-MIT.
-
-## 📋 Table of Contents
-
-- [Architecture Overview](#architecture-overview)
-- [Features](#features)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [Monitoring & Alerting](#monitoring--alerting)
-- [Backup & Recovery](#backup--recovery)
-- [High Availability](#high-availability)
-- [Performance Tuning](#performance-tuning)
-- [Security](#security)
-- [Troubleshooting](#troubleshooting)
-- [Maintenance](#maintenance)
-- [Environment-Specific Deployments](#environment-specific-deployments)
-
-## 🏗️ Architecture Overview
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Kubernetes Cluster                          │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐            │
-│  │  RabbitMQ   │  │  RabbitMQ   │  │  RabbitMQ   │            │
-│  │  Node 0     │  │  Node 1     │  │  Node 2     │            │
-│  │             │  │             │  │             │            │
-│  │ ┌─────────┐ │  │ ┌─────────┐ │  │ ┌─────────┐ │            │
-│  │ │  Mnesia │ │  │ │  Mnesia │ │  │ │  Mnesia │ │            │
-│  │ │  Queue  │ │  │ │  Queue  │ │  │ │  Queue  │ │            │
-│  │ │  Data   │ │  │ │  Data   │ │  │ │  Data   │ │            │
-│  │ └────┬────┘ │  │ └────┬────┘ │  │ └────┬────┘ │            │
-│  │      │      │  │      │      │  │      │      │            │
-│  │ ┌────┴────┐ │  │ ┌────┴────┐ │  │ ┌────┴────┐ │            │
-│  │ │  Disk   │ │  │ │  Disk   │ │  │ │  Disk   │ │            │
-│ │ │Storage  │ │  │ │Storage  │ │  │ │Storage  │ │            │
-│  │ └─────────┘ │  │ └─────────┘ │  │ └─────────┘ │            │
-│  └─────┬───────┘  └─────┬───────┘  └─────┬───────┘            │
-│        │                │                │                    │
-│        └────────────────┴────────────────┘                    │
-│                         │                                      │
-│        ┌────────────────┴────────────────┐                    │
-│        │        Cluster Formation          │                    │
-│        │     (pause_minority policy)     │                    │
-│        └────────────────┬────────────────┘                    │
-│                         │                                      │
-│  ┌─────────────┐  ┌─────┴─────┐  ┌─────────────┐            │
-│  │   Ingress   │  │  Service  │  │   Service   │            │
-│  │  (Management│  │  (AMQP)   │  │  (Prometheus)│            │
-│  │   UI)       │  │  5672/1   │  │   15692/1   │            │
-│  │  443/80     │  │           │  │             │            │
-│  └─────────────┘  └───────────┘  └─────────────┘            │
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────┐         │
-│  │              Monitoring & Alerting                  │         │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────┐│         │
-│  │  │ Prometheus   │  │ Grafana      │  │ Alert-   ││         │
-│  │  │ Service      │  │ Dashboards   │  │ manager  ││         │
-│  │  │ Monitor      │  │              │  │          ││         │
-│  │  └──────────────┘  └──────────────┘  └──────────┘│         │
-│  └─────────────────────────────────────────────────────┘         │
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────┐         │
-│  │              Backup & Recovery                      │         │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────┐│         │
-│  │  │ CronJob      │  │ PVC Storage  │  │ Scripts  ││         │
-│  │  │ Backup       │  │              │  │          ││         │
-│  │  │ Automation   │  │              │  │          ││         │
-│  │  └──────────────┘  └──────────────┘  └──────────┘│         │
-│  └─────────────────────────────────────────────────────┘         │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-## ✨ Features
-
-### Core Features
-- **High Availability**: 3-node cluster with automatic failover
-- **Persistent Storage**: Persistent volumes with data retention
-- **TLS/SSL**: Secure communication with certificate management
-- **Monitoring**: Prometheus metrics and Grafana dashboards
-- **Alerting**: Comprehensive alert rules for critical conditions
-- **Backup & Recovery**: Automated backup with restore capabilities
-- **Security**: Network policies, RBAC, and authentication
-- **Performance Tuning**: Multiple performance profiles
-- **Scalability**: Horizontal and vertical pod autoscaling
-
-### Advanced Features
-- **Federation**: Cross-cluster message routing
-- **Shovel**: Reliable message transfer between brokers
-- **Disaster Recovery**: Multi-site replication support
-- **Custom Resource Definitions**: Declarative cluster management
-- **Environment-Specific Configs**: Dev, staging, production profiles
-- **Network Policies**: Fine-grained network security
-- **Pod Disruption Budgets**: High availability during maintenance
-
-## 📋 Prerequisites
-
-### Required Software
-- **Kubernetes**: 1.20+ (tested with 1.25+)
-- **kubectl**: Latest version
-- **Helm**: 3.0+ (optional, for advanced deployments)
-
-### Required Kubernetes Components
-- **cert-manager**: For TLS certificate management
-- **ingress-nginx**: For external access
-- **Prometheus Operator**: For monitoring and alerting
-- **Storage Class**: For persistent volumes
-
-### System Requirements
-- **CPU**: 2+ cores per RabbitMQ node
-- **Memory**: 4GB+ per RabbitMQ node
-- **Storage**: 10GB+ per node (SSD recommended)
-- **Network**: Low-latency network between nodes
-
-### Pre-installation Check
-```bash
-# Run prerequisite check
-./install-rabbitmq.sh check-prerequisites
-```
-
-## 🚀 Installation
-
-### Quick Installation
-```bash
-# Install everything with default settings
-./install-rabbitmq.sh install
-
-# Install with custom namespace
-./install-rabbitmq.sh install -n my-rabbitmq
-
-# Install with specific storage class
-./install-rabbitmq.sh install -s fast-ssd
-```
-
-### Step-by-Step Installation
-
-#### 1. Create Namespace and RBAC
-```bash
-kubectl apply -f 00-namespace.yaml
-kubectl apply -f 01-rbac.yaml
-```
-
-#### 2. Configure Secrets and TLS
-```bash
-# Create basic auth secret
-kubectl apply -f 32-basic-auth-secret.yaml
-
-# Create TLS certificates (requires cert-manager)
-kubectl apply -f 20-tls-certificate.yaml
-```
-
-#### 3. Deploy Configuration
-```bash
-# Apply main configuration
-kubectl apply -f 10-configmap.yaml
-kubectl apply -f 11-plugins-configmap.yaml
-kubectl apply -f 53-performance-tuning.yaml
-kubectl apply -f 56-environment-config.yaml
-```
-
-#### 4. Deploy RabbitMQ Cluster
-```bash
-# Apply StatefulSet and services
-kubectl apply -f 30-statefulset.yaml
-kubectl apply -f 31-services.yaml
-```
-
-#### 5. Configure External Access
-```bash
-# TCP services for NodePort
-kubectl apply -f 33-tcp-services-configmap.yaml
-
-# Ingress for management UI
-kubectl apply -f 34-ingress.yaml
-```
-
-#### 6. Set Up Monitoring
-```bash
-# Prometheus monitoring
-kubectl apply -f 60-monitoring.yaml
-kubectl apply -f 61-prometheus-rules.yaml
-```
-
-#### 7. Configure High Availability
-```bash
-# Network policies
-kubectl apply -f 40-network-policy.yaml
-
-# Pod disruption budgets
-kubectl apply -f 41-pod-disruption-budget.yaml
-
-# Autoscaling
-kubectl apply -f 42-horizontal-pod-autoscaler.yaml
-kubectl apply -f 43-vertical-pod-autoscaler.yaml
-```
-
-#### 8. Set Up Backup
-```bash
-# Backup automation
-kubectl apply -f 55-backup-automation.yaml
-
-# Persistent volumes (if using local storage)
-kubectl apply -f 54-persistent-volumes.yaml
-```
-
-## ⚙️ Configuration
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `RABBITMQ_DEFAULT_USER` | `admin` | Default admin username |
-| `RABBITMQ_DEFAULT_PASS` | `rabbitmq123` | Default admin password |
-| `RABBITMQ_ERLANG_COOKIE` | Generated | Cluster formation cookie |
-| `RABBITMQ_VM_MEMORY_HIGH_WATERMARK` | `0.6` | Memory threshold |
-| `RABBITMQ_DISK_FREE_LIMIT` | `1GB` | Disk space threshold |
-
-### Configuration Files
-
-#### Main Configuration (`10-configmap.yaml`)
-```yaml
-# Core RabbitMQ settings
-cluster_formation.peer_discovery_backend = rabbit_peer_discovery_k8s
-cluster_formation.k8s.host = kubernetes.default.svc.cluster.local
-cluster_formation.k8s.address_type = hostname
-```
-
-#### Performance Tuning (`53-performance-tuning.yaml`)
-- **High Throughput**: Optimized for message throughput
-- **Low Latency**: Optimized for minimal latency
-- **Balanced**: Default balanced configuration
-
-#### Environment-Specific (`56-environment-config.yaml`)
-- **Development**: Single node, minimal resources
-- **Staging**: 2 nodes, moderate resources
-- **Production**: 3+ nodes, high resources
-
-### Custom Configuration
-
-#### Adding Custom Plugins
-```bash
-# Edit plugins configuration
-kubectl edit configmap rabbitmq-plugins -n rabbitmq
-
-# Restart cluster
-kubectl rollout restart statefulset/rabbitmq -n rabbitmq
-```
-
-#### Performance Profiles
-```bash
-# Apply high-throughput profile
-kubectl patch configmap rabbitmq-config -n rabbitmq \
-  --patch-file configs/high-throughput.yaml
-
-# Apply low-latency profile
-kubectl patch configmap rabbitmq-config -n rabbitmq \
-  --patch-file configs/low-latency.yaml
-```
-
-## 📊 Monitoring & Alerting
-
-### Prometheus Metrics
-
-#### Key Metrics
-- `rabbitmq_queue_messages`: Queue message count
-- `rabbitmq_queue_memory`: Queue memory usage
-- `rabbitmq_connections`: Active connections
-- `rabbitmq_channels`: Open channels
-- `rabbitmq_consumers`: Active consumers
-- `rabbitmq_cluster_nodes`: Cluster node status
-
-#### Metric Endpoints
-- **HTTP**: `http://rabbitmq:15692/metrics`
-- **HTTPS**: `https://rabbitmq:15691/metrics`
-
-### Alert Rules
-
-#### Critical Alerts
-- **RabbitMQDown**: Cluster is unreachable
-- **ClusterPartition**: Network partition detected
-- **LowDiskSpace**: Disk space below threshold
-- **NodeNotRunning**: Node is not running
-
-#### Warning Alerts
-- **HighMemoryUsage**: Memory usage above 80%
-- **HighConnections**: Connection count above threshold
-- **QueueBacklog**: Queue messages above threshold
-- **ConsumerUtilization**: Low consumer utilization
-
-### Grafana Dashboards
-
-#### Import Dashboards
-```bash
-# Download official RabbitMQ dashboard
-wget https://grafana.com/api/dashboards/11334/revisions/1/download -O rabbitmq-dashboard.json
-
-# Import via Grafana UI or API
-```
-
-#### Custom Dashboards
-- **Cluster Overview**: Node health, queues, connections
-- **Performance Metrics**: Throughput, latency, resource usage
-- **Alert Summary**: Active alerts and notifications
-
-## 💾 Backup & Recovery
-
-### Automated Backups
-
-#### Configuration
-```bash
-# Edit backup schedule
-kubectl edit cronjob rabbitmq-backup-cronjob -n rabbitmq
-
-# Default schedule: Daily at 2 AM
-# Retention: 7 days (configurable)
-```
-
-#### Backup Contents
-- **Definitions**: Users, vhosts, exchanges, queues, bindings
-- **Policies**: Queue policies and parameters
-- **Metadata**: Cluster information and status
-- **Configuration**: RabbitMQ configuration files
-
-### Manual Backup
-```bash
-# Trigger manual backup
-kubectl create job --from=cronjob/rabbitmq-backup-cronjob rabbitmq-backup-manual -n rabbitmq
-
-# Check backup status
-kubectl logs -n rabbitmq -l job-name=rabbitmq-backup-manual
-```
-
-### Recovery Process
-
-#### Full Recovery
-```bash
-# Use backup script
-./backup-rabbitmq.sh restore <backup-file>
-
-# Manual restore via API
-curl -u admin:rabbitmq123 -X POST \
-  http://rabbitmq:15672/api/definitions \
-  -H "Content-Type: application/json" \
-  -d @definitions.json
-```
-
-#### Selective Recovery
-```bash
-# Restore only users
-curl -u admin:rabbitmq123 -X POST \
-  http://rabbitmq:15672/api/users \
-  -H "Content-Type: application/json" \
-  -d @users.json
-
-# Restore only queues
-curl -u admin:rabbitmq123 -X POST \
-  http://rabbitmq:15672/api/queues \
-  -H "Content-Type: application/json" \
-  -d @queues.json
-```
-
-## 🔄 High Availability
-
-### Cluster Formation
-- **Discovery**: Kubernetes-based peer discovery
-- **Quorum**: Majority-based consensus (pause_minority)
-- **Recovery**: Automatic node recovery and rejoining
-
-### Pod Disruption Budgets
-```yaml
-# Ensures minimum availability during updates
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: rabbitmq-pdb
-spec:
-  minAvailable: 2
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: rabbitmq
-```
-
-### Network Policies
-- **Ingress Control**: Restricted access to specific ports
-- **Egress Control**: Limited outbound connectivity
-- **Namespace Isolation**: Cross-namespace communication rules
-
-### Auto-scaling
-
-#### Horizontal Pod Autoscaler
-```yaml
-# Scales based on CPU, memory, and queue metrics
-apiVersion: autoscaling/v2
-kind: HorizontalPodAutoscaler
-metadata:
-  name: rabbitmq-hpa
-spec:
-  scaleTargetRef:
-    apiVersion: apps/v1
-    kind: StatefulSet
-    name: rabbitmq
-  minReplicas: 3
-  maxReplicas: 7
-  metrics:
-  - type: Resource
-    resource:
-      name: cpu
-      target:
-        type: Utilization
-        averageUtilization: 70
-```
-
-#### Vertical Pod Autoscaler
-```yaml
-# Automatically adjusts resource requests/limits
-apiVersion: autoscaling.k8s.io/v1
-kind: VerticalPodAutoscaler
-metadata:
-  name: rabbitmq-vpa
-spec:
-  targetRef:
-    apiVersion: apps/v1
-    kind: StatefulSet
-    name: rabbitmq
-  updatePolicy:
-    updateMode: "Auto"
-```
-
-## 🚀 Performance Tuning
-
-### Performance Profiles
-
-#### High Throughput Profile
-```bash
-# Apply high-throughput configuration
-kubectl apply -f configs/high-throughput.yaml
-
-# Key settings:
-# - Increased TCP buffers
-# - Optimized message store
-# - Higher memory thresholds
-# - Parallel connection handling
-```
-
-#### Low Latency Profile
-```bash
-# Apply low-latency configuration
-kubectl apply -f configs/low-latency.yaml
-
-# Key settings:
-# - Reduced TCP buffers
-# - Faster heartbeats
-# - Lower memory thresholds
-# - Disabled background GC
-```
-
-#### Balanced Profile (Default)
-```bash
-# Apply balanced configuration (recommended)
-kubectl apply -f configs/balanced.yaml
-
-# Key settings:
-# - Moderate TCP buffers
-# - Standard heartbeats
-# - Balanced memory management
-# - Enabled background GC
-```
-
-### Queue Optimization
-
-#### Queue Types
-- **Classic Queues**: Standard queues with persistence
-- **Quorum Queues**: Replicated queues for HA
-- **Stream Queues**: High-throughput append-only logs
-
-#### Best Practices
-```bash
-# Use quorum queues for HA
-rabbitmqctl set_policy ha-queues "^ha\." '{"queue-type":"quorum"}' --priority 1
-
-# Set appropriate queue masters
-rabbitmqctl set_policy queue-masters ".*" '{"queue-master-locator":"min-masters"}' --priority 1
-```
-
-### Connection Management
-
-#### Connection Pooling
-- **Limit Connections**: Set appropriate connection limits
-- **Use Connection Pooling**: Implement client-side pooling
-- **Monitor Connections**: Track connection metrics
-
-#### Client Configuration
+### Python (pika)
 ```python
-# Python client example
 import pika
 
-connection_params = pika.ConnectionParameters(
+# Conexão sem TLS (interno)
+credentials = pika.PlainCredentials('admin', 'Admin@123')
+parameters = pika.ConnectionParameters(
     host='rabbitmq.rabbitmq.svc.cluster.local',
     port=5672,
-    credentials=pika.PlainCredentials('admin', 'rabbitmq123'),
-    heartbeat=60,
-    blocked_connection_timeout=300,
-    connection_attempts=3,
-    retry_delay=2
+    credentials=credentials
 )
+connection = pika.BlockingConnection(parameters)
+channel = connection.channel()
+
+# Declarar fila
+channel.queue_declare(queue='hello')
+
+# Publicar mensagem
+channel.basic_publish(exchange='', routing_key='hello', body='Hello World!')
+print("Mensagem enviada!")
+
+connection.close()
 ```
 
-## 🔒 Security
+### Node.js (amqplib)
+```javascript
+const amqp = require('amqplib');
 
-### Authentication & Authorization
+// Conexão
+const connection = await amqp.connect('amqp://admin:Admin@123@rabbitmq.rabbitmq.svc.cluster.local:5672');
+const channel = await connection.createChannel();
 
-#### Default Security
-- **Username**: `admin` (configurable)
-- **Password**: Generated secret (change immediately)
-- **TLS/SSL**: Enabled with cert-manager
+// Declarar fila
+await channel.assertQueue('hello');
 
-#### Custom Users
+// Publicar mensagem
+channel.sendToQueue('hello', Buffer.from('Hello World!'));
+console.log("Mensagem enviada!");
+
+await channel.close();
+await connection.close();
+```
+
+## 🔧 Operações Comuns
+
+### Verificar Status
 ```bash
-# Create new user
-rabbitmqctl add_user myuser mypassword
+# Status dos pods
+kubectl get pods -n rabbitmq
 
-# Set permissions
-rabbitmqctl set_permissions -p / myuser ".*" ".*" ".*"
+# Status dos services
+kubectl get svc -n rabbitmq
 
-# Set user tags
-rabbitmqctl set_user_tags myuser monitoring
+# Logs
+kubectl logs -n rabbitmq rabbitmq-0 -f
+
+# Entrar no pod
+kubectl exec -it -n rabbitmq rabbitmq-0 -- bash
 ```
 
-#### LDAP Integration
-```yaml
-# Configure LDAP authentication
-ldap.servers.1 = ldap.example.com
-ldap.dn_lookup_bind.user_dn = cn=admin,dc=example,dc=com
-ldap.dn_lookup_bind.password = password
-ldap.user_dn_pattern = cn=${username},ou=users,dc=example,dc=com
-```
-
-### Network Security
-
-#### Network Policies
-```yaml
-# Restrict access to RabbitMQ ports
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: rabbitmq-network-policy
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: rabbitmq
-  policyTypes:
-  - Ingress
-  - Egress
-  ingress:
-  - from:
-    - namespaceSelector:
-        matchLabels:
-          name: monitoring
-    ports:
-    - protocol: TCP
-      port: 15692  # Prometheus metrics
-```
-
-#### TLS Configuration
+### Comandos RabbitMQ CLI
 ```bash
-# Enable TLS for AMQP
-rabbitmqctl enable_plugin rabbitmq_auth_mechanism_ssl
-
-# Configure TLS listeners
-listeners.ssl.default = 5671
-ssl_options.cacertfile = /etc/rabbitmq/ca_certificate.pem
-ssl_options.certfile = /etc/rabbitmq/server_certificate.pem
-ssl_options.keyfile = /etc/rabbitmq/server_key.pem
-```
-
-### Secret Management
-
-#### Kubernetes Secrets
-```bash
-# Create secret for basic auth
-kubectl create secret generic rabbitmq-basic-auth \
-  --from-literal=username=admin \
-  --from-literal=password=securepassword \
-  -n rabbitmq
-
-# Create TLS secret
-kubectl create secret tls rabbitmq-tls \
-  --cert=tls.crt \
-  --key=tls.key \
-  -n rabbitmq
-```
-
-#### External Secret Management
-- **HashiCorp Vault**: Integration with Vault
-- **AWS Secrets Manager**: Cloud secret management
-- **Azure Key Vault**: Microsoft cloud secrets
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-#### Pod Startup Issues
-```bash
-# Check pod logs
-kubectl logs -n rabbitmq rabbitmq-0
-
-# Check pod events
-kubectl describe pod -n rabbitmq rabbitmq-0
-
-# Check PVC status
-kubectl get pvc -n rabbitmq
-```
-
-#### Cluster Formation Issues
-```bash
-# Check cluster status
-kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmqctl cluster_status
-
-# Check node communication
-kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmqctl ping
-
-# Reset node if needed
-kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmqctl reset
-```
-
-#### Performance Issues
-```bash
-# Check memory usage
+# Dentro do pod
 kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmqctl status
-
-# Check queue status
-kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmqctl list_queues name messages memory
-
-# Check connections
+kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmqctl cluster_status
+kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmqctl list_queues
+kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmqctl list_users
 kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmqctl list_connections
 ```
 
-### Diagnostic Tools
-
-#### Built-in Diagnostics
+### Gerenciar Usuários
 ```bash
-# Run comprehensive diagnostics
-./troubleshoot-rabbitmq.sh all
+# Criar usuário
+kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmqctl add_user myuser mypassword
 
-# Check specific areas
-./troubleshoot-rabbitmq.sh cluster
-./troubleshoot-rabbitmq.sh network
-./troubleshoot-rabbitmq.sh storage
-./troubleshoot-rabbitmq.sh performance
+# Definir permissões
+kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmqctl set_permissions -p / myuser ".*" ".*" ".*"
+
+# Definir tags
+kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmqctl set_user_tags myuser administrator
+
+# Listar usuários
+kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmqctl list_users
 ```
 
-#### Manual Diagnostics
+## 📊 Monitoramento
+
+### Prometheus Metrics
 ```bash
-# Check node health
-kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmq-diagnostics node_health_check
+# Dentro do cluster
+curl http://rabbitmq.rabbitmq.svc.cluster.local:15692/metrics
 
-# Check alarms
-kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmq-diagnostics alarms
-
-# Check environment
-kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmq-diagnostics environment
+# Via ingress
+curl -k https://rabbitmq-mgmt.home.arpa/metrics
 ```
 
-### Log Analysis
+### Grafana Dashboard
+Importar dashboards RabbitMQ no Grafana:
+- Dashboard ID: 10991 (RabbitMQ-Overview)
+- Dashboard ID: 4279 (RabbitMQ Monitoring)
 
-#### Log Locations
+## 💾 Backup e Recovery
+
+### Backup de Definições
 ```bash
-# Container logs
+# Exportar definições (exchanges, queues, bindings, etc)
+curl -k -u admin:Admin@123 https://rabbitmq-mgmt.home.arpa/api/definitions -o rabbitmq-definitions.json
+```
+
+### Restore de Definições
+```bash
+# Importar definições
+curl -k -u admin:Admin@123 -H "Content-Type: application/json" \
+  -X POST --data @rabbitmq-definitions.json \
+  https://rabbitmq-mgmt.home.arpa/api/definitions
+```
+
+## 🚨 Troubleshooting
+
+### Pod não inicia
+```bash
+# Ver logs
 kubectl logs -n rabbitmq rabbitmq-0
 
-# RabbitMQ logs inside container
-kubectl exec -n rabbitmq rabbitmq-0 -- tail -f /var/log/rabbitmq/rabbit@*.log
+# Descrever pod
+kubectl describe pod -n rabbitmq rabbitmq-0
 
-# SASL logs
-kubectl exec -n rabbitmq rabbitmq-0 -- tail -f /var/log/rabbitmq/rabbit@*-sasl.log
+# Verificar eventos
+kubectl get events -n rabbitmq --sort-by='.lastTimestamp'
 ```
 
-#### Log Configuration
-```yaml
-# Configure log levels
-log.console.level = warning
-log.file.level = warning
-log.exchange.level = warning
-```
-
-## 🛠️ Maintenance
-
-### Upgrades
-
-#### Rolling Upgrades
+### Login não funciona
 ```bash
-# Upgrade with zero downtime
-kubectl patch statefulset rabbitmq -n rabbitmq \
-  --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "rabbitmq:3.13-management"}]'
-
-# Monitor upgrade progress
-kubectl rollout status statefulset/rabbitmq -n rabbitmq
+# Verificar senha
+kubectl get secret rabbitmq-admin -n rabbitmq -o jsonpath='{.data.password}' | base64 -d
 ```
 
-#### Version Compatibility
-- **Major Versions**: Test in staging first
-- **Minor Versions**: Generally safe for rolling upgrades
-- **Plugins**: Ensure plugin compatibility
-
-### Capacity Planning
-
-#### Resource Monitoring
+### Limpar mensagens
 ```bash
-# Monitor resource usage
-kubectl top pods -n rabbitmq
+# Purge de fila via CLI
+kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmqctl purge_queue <queue_name>
 
-# Check PVC usage
-kubectl get pvc -n rabbitmq
-
-# Monitor queue growth
-kubectl exec -n rabbitmq rabbitmq-0 -- rabbitmqctl list_queues name messages message_bytes
+# Ou use a Management UI
 ```
 
-#### Scaling Guidelines
-- **CPU**: Scale based on connection count and message rate
-- **Memory**: Scale based on queue size and message retention
-- **Storage**: Plan for message persistence and retention policies
-
-### Cleanup
-
-#### Remove RabbitMQ
+### Reiniciar
 ```bash
-# Complete cleanup
-./install-rabbitmq.sh cleanup
+# Reiniciar pod
+kubectl delete pod rabbitmq-0 -n rabbitmq
 
-# Remove specific components
-kubectl delete -f 30-statefulset.yaml
-kubectl delete -f 31-services.yaml
+# Ou rollout restart
+kubectl rollout restart statefulset/rabbitmq -n rabbitmq
+```
+
+## 🔒 Segurança
+
+### Credenciais Configuradas
+
+| Usuário | Secret | Uso |
+|---------|--------|-----|
+| admin | rabbitmq-admin | Administração |
+| appuser | rabbitmq-app | Aplicações |
+| monitoring | rabbitmq-monitoring | Monitoramento |
+
+### Verificar Senhas
+```bash
+# Admin
+kubectl get secret rabbitmq-admin -n rabbitmq -o jsonpath='{.data.password}' | base64 -d
+
+# App
+kubectl get secret rabbitmq-app -n rabbitmq -o jsonpath='{.data.password}' | base64 -d
+
+# Monitoring
+kubectl get secret rabbitmq-monitoring -n rabbitmq -o jsonpath='{.data.password}' | base64 -d
+```
+
+## 🧹 Remoção
+
+```bash
+# Remover tudo
+kubectl delete -f 20-statefulset.yaml
+kubectl delete -f 30-management-ingress.yaml
+kubectl delete -f 31-rabbitmq-loadbalancer.yaml
+kubectl delete -f 13-management-svc.yaml
+kubectl delete -f 12-client-svc.yaml
+kubectl delete -f 11-headless-svc.yaml
+kubectl delete -f 10-configmap.yaml
+kubectl delete -f 40-network-policy.yaml
+kubectl delete -f 02-tls-certificates.yaml
+kubectl delete -f 01-secret.yaml
+kubectl delete -f 03-rbac.yaml
+kubectl delete -f 00-namespace.yaml
+
+# Ou deletar o namespace inteiro
 kubectl delete namespace rabbitmq
 ```
 
-## 🌍 Environment-Specific Deployments
+## 📚 Referências
 
-### Development Environment
-```bash
-# Deploy development configuration
-kubectl apply -f configs/dev-cluster.yaml
+- [RabbitMQ Docs](https://www.rabbitmq.com/documentation.html)
+- [Management Plugin](https://www.rabbitmq.com/management.html)
+- [AMQP Concepts](https://www.rabbitmq.com/tutorials/amqp-concepts.html)
+- [Prometheus Monitoring](https://www.rabbitmq.com/prometheus.html)
 
-# Features:
-# - Single node
-# - Minimal resources
-# - Debug logging enabled
-# - Basic monitoring
-```
+## 📄 Licença
 
-### Staging Environment
-```bash
-# Deploy staging configuration
-kubectl apply -f configs/staging-cluster.yaml
-
-# Features:
-# - 2-node cluster
-# - Moderate resources
-# - Full monitoring
-# - Backup enabled
-```
-
-### Production Environment
-```bash
-# Deploy production configuration
-kubectl apply -f configs/prod-cluster.yaml
-
-# Features:
-# - 3+ node cluster
-# - High resources
-# - Full HA configuration
-# - Advanced monitoring
-# - Automated backup
-# - Network policies
-```
-
-### Custom Environment
-```bash
-# Create custom configuration
-cp configs/prod-cluster.yaml configs/custom-cluster.yaml
-
-# Edit as needed
-vim configs/custom-cluster.yaml
-
-# Deploy custom configuration
-kubectl apply -f configs/custom-cluster.yaml
-```
-
-## 📚 Additional Resources
-
-### Documentation
-- [RabbitMQ Official Documentation](https://www.rabbitmq.com/documentation.html)
-- [Kubernetes Operator Documentation](https://www.rabbitmq.com/kubernetes/operator/operator-overview.html)
-- [Prometheus Monitoring Guide](https://www.rabbitmq.com/prometheus.html)
-
-### Community
-- [RabbitMQ Community](https://github.com/rabbitmq/rabbitmq-server)
-- [Kubernetes Slack #rabbitmq](https://kubernetes.slack.com/channels/rabbitmq)
-- [Stack Overflow](https://stackoverflow.com/questions/tagged/rabbitmq)
-
-### Tools
-- [rabbitmqctl](https://www.rabbitmq.com/rabbitmqctl.8.html): Command-line tool
-- [rabbitmq-diagnostics](https://www.rabbitmq.com/rabbitmq-diagnostics.8.html): Diagnostics tool
-- [PerfTest](https://github.com/rabbitmq/rabbitmq-perf-test): Performance testing tool
-
-## 🤝 Contributing
-
-### Contributing Guidelines
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-### Testing
-```bash
-# Run all tests
-./test-rabbitmq.sh all
-
-# Run specific tests
-./test-rabbitmq.sh cluster
-./test-rabbitmq.sh performance
-./test-rabbitmq.sh ha
-```
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🆘 Support
-
-### Getting Help
-- **Issues**: Create an issue in the repository
-- **Discussions**: Use GitHub Discussions
-- **Documentation**: Check the troubleshooting section
-
-### Commercial Support
-- **RabbitMQ Commercial**: https://www.rabbitmq.com/services.html
-- **VMware Support**: https://tanzu.vmware.com/rabbitmq
-
----
-
-**Note**: This deployment is designed for Kubernetes homelab environments. For production use, ensure you review and customize all security settings, resource limits, and monitoring configurations according to your specific requirements.
+MIT
