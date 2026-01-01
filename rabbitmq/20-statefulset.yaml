@@ -69,6 +69,7 @@ spec:
         ports:
         - name: amqp
           containerPort: 5672
+          hostPort: 5672  # Expor diretamente no host para evitar problemas de LoadBalancer/IPTables
           protocol: TCP
         - name: amqp-ssl
           containerPort: 5671

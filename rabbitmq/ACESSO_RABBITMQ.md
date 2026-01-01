@@ -7,24 +7,26 @@
 - **Usuário**: `admin`
 - **Senha**: `Admin@123`
 
-### Acesso AMQP
+## 2. Acesso ao Broker (AMQP)
 
-**Via domínio (recomendado)**:
+O RabbitMQ está exposto diretamente na porta **5672** do nó (HostPort).
+
+- **Host:** `rabbitmq.home.arpa` (ou IP `192.168.1.51`)
+- **Porta:** `5672`
+- **Usuário:** `admin`
+- **Senha:** `Admin@123`
+
+### ⚠️ Connection String (Importante)
+Como a senha contém `@`, você **DEVE** codificá-la como `%40` na URL de conexão.
+
+**Correto:**
 ```
-# AMQP (sem TLS)
+amqp://admin:Admin%40123@rabbitmq.home.arpa:5672/
+```
+
+**Incorreto (Vai falhar):**
+```
 amqp://admin:Admin@123@rabbitmq.home.arpa:5672/
-
-# AMQPS (com TLS)
-amqps://admin:Admin@123@rabbitmq.home.arpa:5671/
-```
-
-**Dentro do cluster Kubernetes**:
-```
-# AMQP (sem TLS)
-amqp://admin:Admin@123@rabbitmq.rabbitmq.svc.cluster.local:5672/
-
-# AMQPS (com TLS)
-amqps://admin:Admin@123@rabbitmq.rabbitmq.svc.cluster.local:5671/
 ```
 
 ## 🌐 Configuração DNS
