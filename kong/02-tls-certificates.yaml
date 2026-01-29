@@ -1,0 +1,28 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kong-proxy-cert
+  namespace: kong
+spec:
+  secretName: kong-proxy-tls
+  issuerRef:
+    name: local-ca
+    kind: ClusterIssuer
+  commonName: kong.local
+  dnsNames:
+  - kong.local
+  - "*.kong.local"
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kong-admin-cert
+  namespace: kong
+spec:
+  secretName: kong-admin-tls
+  issuerRef:
+    name: local-ca
+    kind: ClusterIssuer
+  commonName: kong-admin.local
+  dnsNames:
+  - kong-admin.local
