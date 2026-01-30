@@ -13,9 +13,16 @@ Este documento define os padrões de nomenclatura DNS para o cluster K3s.
 **Exemplos:**
 ```
 argocd.home.arpa
+authentik.home.arpa
 grafana.home.arpa
+kibana.home.arpa
+kong-admin.home.arpa
+kong-manager.home.arpa
 minio-console.home.arpa
 minio-s3.home.arpa
+mongodb-console.home.arpa
+n8n.home.arpa
+nats-monitor.home.arpa
 prometheus.home.arpa
 redis-stats.home.arpa
 ```
@@ -91,8 +98,18 @@ cat <<EOF | sudo tee -a /etc/hosts
 $EXTERNAL_IP argocd.home.arpa
 $EXTERNAL_IP grafana.home.arpa
 $EXTERNAL_IP prometheus.home.arpa
+$EXTERNAL_IP kibana.home.arpa
+$EXTERNAL_IP elasticsearch.home.arpa
+$EXTERNAL_IP redis-stats.home.arpa
+$EXTERNAL_IP rabbitmq-mgmt.home.arpa
 $EXTERNAL_IP minio-console.home.arpa
 $EXTERNAL_IP minio-s3.home.arpa
+$EXTERNAL_IP mongodb-console.home.arpa
+$EXTERNAL_IP nats-monitor.home.arpa
+$EXTERNAL_IP n8n.home.arpa
+$EXTERNAL_IP kong-admin.home.arpa
+$EXTERNAL_IP kong-manager.home.arpa
+$EXTERNAL_IP authentik.home.arpa
 $EXTERNAL_IP traefik.home.arpa
 $EXTERNAL_IP dashboard.home.arpa
 EOF
@@ -226,7 +243,18 @@ spec:
 | MinIO Console | `minio-console.home.arpa` | `minio-console.minio.svc.cluster.local` | 9001 |
 | MinIO S3 | `minio-s3.home.arpa` | `minio.minio.svc.cluster.local` | 9000 |
 | Redis Master | N/A (LoadBalancer) | `redis-master.redis.svc.cluster.local` | 6379/6380 |
-| RabbitMQ | `rabbitmq.home.arpa` | `rabbitmq.rabbitmq.svc.cluster.local` | 5672/15672 |
+| RabbitMQ | `rabbitmq.home.arpa` (AMQP) / `rabbitmq-mgmt.home.arpa` (UI) | `rabbitmq.rabbitmq.svc.cluster.local` | 5672/15672 |
+| Redis Stats | `redis-stats.home.arpa` | `redis-commander.redis.svc.cluster.local` | 8081 |
+| Kibana | `kibana.home.arpa` | `kibana.elk.svc.cluster.local` | 5601 |
+| Elasticsearch | `elasticsearch.home.arpa` | `elasticsearch.elk.svc.cluster.local` | 9200 |
+| NATS | `nats.home.arpa` | `nats.nats.svc.cluster.local` | 4222 |
+| NATS Monitor | `nats-monitor.home.arpa` | `nats.nats.svc.cluster.local` | 8222 |
+| MongoDB | `mongodb.home.arpa` | `mongodb-client.mongodb.svc.cluster.local` | 27017 |
+| Mongo Express | `mongodb-console.home.arpa` | `mongo-express.mongodb.svc.cluster.local` | 8081 |
+| n8n | `n8n.home.arpa` | `n8n.n8n.svc.cluster.local` | 5678 |
+| Kong Admin API | `kong-admin.home.arpa` | `kong-admin.kong.svc.cluster.local` | 8001 |
+| Kong Manager | `kong-manager.home.arpa` | `kong-admin.kong.svc.cluster.local` | 8002 |
+| Authentik | `authentik.home.arpa` | `authentik-server.authentik.svc.cluster.local` | 80 |
 
 ### Dashboards e Ferramentas
 
@@ -326,4 +354,4 @@ Ao adicionar um novo serviço:
 ---
 
 **Mantido por**: SRE Team
-**Última atualização**: 2025-12-11
+**Última atualização**: 2026-01-30

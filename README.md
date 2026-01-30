@@ -9,14 +9,19 @@ Cluster Kubernetes K3s para homelab com stack completo de serviços.
 
 | Serviço | URL | Docs |
 |---------|-----|------|
-| **Grafana** | https://grafana.home.arpa | [/monitoring](monitoring/) |
-| **Prometheus** | https://prometheus.home.arpa | [/monitoring](monitoring/) |
-| **Kibana** | https://kibana.home.arpa | [/ELK](ELK/) |
-| **RabbitMQ** | https://rabbitmq-mgmt.home.arpa | [/rabbitmq](rabbitmq/) |
-| **MinIO** | https://minio-console.home.arpa | [/minio](minio/) |
-| **Redis Commander** | https://redis-stats.home.arpa | [/redis](redis/) |
+| **Grafana** | https://grafana.home.arpa | [monitoring](monitoring/README.md) |
+| **Prometheus** | https://prometheus.home.arpa | [monitoring](monitoring/README.md) |
+| **Kibana** | https://kibana.home.arpa | [ELK](ELK/README.md) |
+| **RabbitMQ** | https://rabbitmq-mgmt.home.arpa | [rabbitmq](rabbitmq/README.md) |
+| **MinIO** | https://minio-console.home.arpa | [minio](minio/README.md) |
+| **Redis Commander** | https://redis-stats.home.arpa | [redis](redis/README.md) |
+| **Mongo Express** | https://mongodb-console.home.arpa | [mongodb](mongodb/README.md) |
+| **n8n** | https://n8n.home.arpa | [n8n](n8n/README.md) |
+| **Authentik** | https://authentik.home.arpa | [authentik](authentik/ACESSO_AUTHENTIK.md) |
+| **Kong Manager** | https://kong-manager.home.arpa | [kong](kong/ACESSO_KONG.md) |
+| **NATS Monitor** | https://nats-monitor.home.arpa | [nats](nats/README.md) |
 
-**Senha padrão**: `Admin@123` (maioria dos serviços)
+**Senha padrão (quando aplicável)**: `Admin@123` (a maioria dos serviços)
 **IP do Traefik**: `192.168.1.51`
 
 ## 📦 Componentes Instalados
@@ -41,10 +46,16 @@ Cluster Kubernetes K3s para homelab com stack completo de serviços.
 ### Databases & Message Queues
 - **Redis**: In-memory database (1 master + 3 replicas)
 - **RabbitMQ**: Message broker AMQP
+- **NATS**: Message broker (pub/sub + JetStream)
+- **MongoDB**: Banco de dados NoSQL (StatefulSet)
 - **MinIO**: Object storage (S3-compatible)
 
-### Management
-- **Portainer**: Gerenciamento visual do cluster
+### Access & API Gateway
+- **Authentik**: IAM/SSO (IdP)
+- **Kong Gateway**: API Gateway (DB-less)
+
+### Apps
+- **n8n**: Automação de workflows (persistência via PVC)
 
 ## 📚 Documentação
 
@@ -59,6 +70,11 @@ Cluster Kubernetes K3s para homelab com stack completo de serviços.
 - [Redis](redis/README.md)
 - [RabbitMQ](rabbitmq/README.md)
 - [MinIO](minio/README.md)
+- [NATS](nats/README.md)
+- [MongoDB](mongodb/README.md)
+- [n8n](n8n/README.md)
+- [Authentik](authentik/ACESSO_AUTHENTIK.md)
+- [Kong Gateway](kong/ACESSO_KONG.md)
 - [K3s Setup](k3s-setup/README.md)
 - [Certificados](certs/README.md)
 
@@ -86,7 +102,12 @@ kubectl get ingress --all-namespaces
 kubectl get all -n monitoring   # Prometheus, Grafana, Loki
 kubectl get all -n elk          # Elasticsearch, Kibana
 kubectl get all -n rabbitmq     # RabbitMQ
+kubectl get all -n nats         # NATS
+kubectl get all -n mongodb      # MongoDB + Mongo Express
 kubectl get all -n minio        # MinIO
+kubectl get all -n n8n          # n8n
+kubectl get all -n kong         # Kong Gateway
+kubectl get all -n authentik    # Authentik
 kubectl get all -n redis        # Redis
 ```
 
@@ -121,7 +142,12 @@ Ver documentação completa de troubleshooting em [ACESSO_RAPIDO.md](ACESSO_RAPI
 ├── ELK/                      # Elasticsearch + Kibana + Logstash
 ├── redis/                    # Redis master-replica
 ├── rabbitmq/                 # RabbitMQ message broker
+├── nats/                     # NATS + JetStream
+├── mongodb/                  # MongoDB + Mongo Express
 ├── minio/                    # MinIO object storage
+├── n8n/                      # n8n (workflows)
+├── kong/                     # Kong API Gateway
+├── authentik/                # Authentik (IdP/SSO)
 ├── k3s-setup/               # Instalação e configuração K3s
 ├── certs/                   # Certificados TLS
 └── archive/                 # Documentação arquivada

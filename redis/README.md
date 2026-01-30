@@ -232,12 +232,12 @@ kubectl exec -n redis redis-replica-2 -- redis-cli -a Admin@123 INFO replication
 ### Alterar Senha
 ```bash
 # Editar secret
-kubectl edit secret redis-secret -n redis
+kubectl edit secret redis-auth -n redis
 
 # Ou recriar
-kubectl delete secret redis-secret -n redis
-kubectl create secret generic redis-secret \
-  --from-literal=redis-password=newpassword \
+kubectl delete secret redis-auth -n redis
+kubectl create secret generic redis-auth \
+  --from-literal=REDIS_PASSWORD=newpassword \
   -n redis
 
 # Reiniciar pods
@@ -343,7 +343,7 @@ kubectl exec -n redis redis-master-0 -- redis-cli -a Admin@123 FLUSHDB
 ### Conexão recusada
 ```bash
 # Verificar senha
-kubectl get secret redis-secret -n redis -o jsonpath='{.data.redis-password}' | base64 -d
+kubectl get secret redis-auth -n redis -o jsonpath='{.data.REDIS_PASSWORD}' | base64 -d
 
 # Testar conexão
 kubectl exec -n redis redis-master-0 -- redis-cli -a Admin@123 PING
@@ -367,7 +367,7 @@ kubectl rollout restart statefulset/redis-replica -n redis
 ### Senha Atual
 ```bash
 # Ver senha
-kubectl get secret redis-secret -n redis -o jsonpath='{.data.redis-password}' | base64 -d
+kubectl get secret redis-auth -n redis -o jsonpath='{.data.REDIS_PASSWORD}' | base64 -d
 ```
 
 ### TLS

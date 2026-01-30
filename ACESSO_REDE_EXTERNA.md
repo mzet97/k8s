@@ -20,12 +20,20 @@ Todos os serviços TCP e HTTP estão acessíveis através deste IP.
 
 | Serviço | URL | Credenciais |
 |---------|-----|-------------|
-| Redis Commander | https://redis-stats.home.arpa/ | admin / Admin@123 |
+| Redis Commander | https://redis-stats.home.arpa/ | admin / (mesma do Redis) |
 | RabbitMQ Management | https://rabbitmq-mgmt.home.arpa/ | admin / Admin@123 |
 | MinIO Console | https://minio-console.home.arpa/ | admin / Admin@123 |
 | Grafana | https://grafana.home.arpa/ | admin / Admin@123 |
 | Prometheus | https://prometheus.home.arpa/ | (sem senha) |
 | Kibana | https://kibana.home.arpa/ | (sem senha) |
+| Mongo Express | https://mongodb-console.home.arpa/ | admin / Admin@123 |
+| n8n | https://n8n.home.arpa/ | (definida no primeiro acesso) |
+| NATS Monitor | https://nats-monitor.home.arpa/ | (sem senha) |
+| Kong Manager | https://kong-manager.home.arpa/ | admin / Admin@123 |
+| Kong Admin API | https://kong-admin.home.arpa/ | admin / Admin@123 |
+| Authentik | https://authentik.home.arpa/ | akadmin / (definida no primeiro acesso) |
+
+Observação (ELK): quando `xpack.security.enabled: false`, Kibana/Elasticsearch ficam sem login. Se habilitar segurança, use as credenciais do Secret `elastic-credentials`.
 
 ### Conexões TCP/Protocolos Nativos
 
@@ -37,6 +45,9 @@ Todos os serviços TCP e HTTP estão acessíveis através deste IP.
 | **RabbitMQ TLS** | rabbitmq.home.arpa | 5671 | AMQPS (com TLS) | admin / Admin@123 |
 | **MinIO S3** | minio-s3.home.arpa | 443 | S3 API (HTTPS) | admin / Admin@123 |
 | **Elasticsearch** | elasticsearch.home.arpa | 443 | HTTP API | (sem senha) |
+| **MongoDB** | mongodb.home.arpa | 27017 | MongoDB (TCP) | admin / Admin@123 |
+| **NATS** | nats.home.arpa | 4222 | NATS (TCP) | admin / Admin@123 |
+| **Kong Proxy** | 192.168.1.51 | 80/443 | HTTP/HTTPS | (depende da sua API) |
 
 ---
 
@@ -299,14 +310,14 @@ xdg-open https://minio-console.home.arpa/
 
 ## 📚 Documentação Relacionada
 
-- **Guia DNS Completo**: `/home/k8s1/k8s/GUIA_DNS_COMPLETO.md`
-- **DNS Standards**: `/home/k8s1/k8s/DNS-STANDARDS.md`
-- **Acesso Completo**: `/home/k8s1/k8s/ACESSO_COMPLETO.md`
-- **Redis**: `/home/k8s1/k8s/redis/ACESSO_REDIS_STATS.md`
-- **RabbitMQ**: `/home/k8s1/k8s/rabbitmq/ACESSO_RABBITMQ.md`
-- **MinIO**: `/home/k8s1/k8s/minio/ACESSO_MINIO.md`
-- **Monitoring**: `/home/k8s1/k8s/monitoring/ACESSO_MONITORING.md`
-- **ELK**: `/home/k8s1/k8s/ELK/ACESSO_ELK.md`
+- **Guia DNS Completo**: [GUIA_DNS_COMPLETO.md](GUIA_DNS_COMPLETO.md)
+- **DNS Standards**: [DNS-STANDARDS.md](DNS-STANDARDS.md)
+- **Acesso Completo**: [ACESSO_COMPLETO.md](ACESSO_COMPLETO.md)
+- **Redis**: [ACESSO_REDIS_STATS.md](redis/ACESSO_REDIS_STATS.md)
+- **RabbitMQ**: [ACESSO_RABBITMQ.md](rabbitmq/ACESSO_RABBITMQ.md)
+- **MinIO**: [ACESSO_MINIO.md](minio/ACESSO_MINIO.md)
+- **Monitoring**: [ACESSO_MONITORING.md](monitoring/ACESSO_MONITORING.md)
+- **ELK**: [ACESSO_ELK.md](ELK/ACESSO_ELK.md)
 
 ---
 
@@ -324,5 +335,5 @@ xdg-open https://minio-console.home.arpa/
 
 ---
 
-**Última atualização**: 2025-12-11
+**Última atualização**: 2026-01-30
 **IP LoadBalancer**: 192.168.1.51

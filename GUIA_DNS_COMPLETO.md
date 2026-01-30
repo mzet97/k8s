@@ -22,6 +22,12 @@ Todos os serviços estão acessíveis através deste IP usando domínios `.home.
 | **Prometheus** | prometheus.home.arpa | 443 | 80 | Web UI |
 | **Kibana** | kibana.home.arpa | 443 | 80 | Web UI |
 | **Elasticsearch** | elasticsearch.home.arpa | 443 | 80 | API |
+| **Mongo Express** | mongodb-console.home.arpa | 443 | 80 | Web UI |
+| **n8n** | n8n.home.arpa | 443 | 80 | Web UI |
+| **NATS Monitor** | nats-monitor.home.arpa | 443 | 80 | Web UI |
+| **Kong Admin API** | kong-admin.home.arpa | 443 | 80 | Admin API |
+| **Kong Manager** | kong-manager.home.arpa | 443 | 80 | Web UI |
+| **Authentik** | authentik.home.arpa | 443 | 80 | Web UI |
 
 ### Serviços TCP/UDP (via LoadBalancer)
 
@@ -29,6 +35,8 @@ Todos os serviços estão acessíveis através deste IP usando domínios `.home.
 |---------|---------|--------|-----------|-----|
 | **Redis** | redis.home.arpa | 6379, 6380 | TCP | Redis Protocol (6379: sem TLS, 6380: com TLS) |
 | **RabbitMQ** | rabbitmq.home.arpa | 5672, 5671 | TCP | AMQP (5672: sem TLS, 5671: com TLS) |
+| **NATS** | nats.home.arpa | 4222 | TCP | NATS Client (pub/sub + JetStream) |
+| **MongoDB** | mongodb.home.arpa | 27017 | TCP | MongoDB (database) |
 
 ---
 
@@ -59,10 +67,18 @@ cat <<EOF | sudo tee -a /etc/hosts
 192.168.1.51 prometheus.home.arpa
 192.168.1.51 kibana.home.arpa
 192.168.1.51 elasticsearch.home.arpa
+192.168.1.51 mongodb-console.home.arpa
+192.168.1.51 n8n.home.arpa
+192.168.1.51 nats-monitor.home.arpa
+192.168.1.51 kong-admin.home.arpa
+192.168.1.51 kong-manager.home.arpa
+192.168.1.51 authentik.home.arpa
 
 # K3s Homelab Services - TCP/UDP
 192.168.1.51 redis.home.arpa
 192.168.1.51 rabbitmq.home.arpa
+192.168.1.51 nats.home.arpa
+192.168.1.51 mongodb.home.arpa
 EOF
 ```
 
@@ -78,10 +94,18 @@ $entries = @"
 192.168.1.51 prometheus.home.arpa
 192.168.1.51 kibana.home.arpa
 192.168.1.51 elasticsearch.home.arpa
+192.168.1.51 mongodb-console.home.arpa
+192.168.1.51 n8n.home.arpa
+192.168.1.51 nats-monitor.home.arpa
+192.168.1.51 kong-admin.home.arpa
+192.168.1.51 kong-manager.home.arpa
+192.168.1.51 authentik.home.arpa
 
 # K3s Homelab Services - TCP/UDP
 192.168.1.51 redis.home.arpa
 192.168.1.51 rabbitmq.home.arpa
+192.168.1.51 nats.home.arpa
+192.168.1.51 mongodb.home.arpa
 "@
 Add-Content C:\Windows\System32\drivers\etc\hosts $entries
 ```
@@ -453,6 +477,12 @@ https://minio-console.home.arpa/        - MinIO Console
 https://grafana.home.arpa/              - Grafana
 https://prometheus.home.arpa/           - Prometheus
 https://kibana.home.arpa/               - Kibana
+https://mongodb-console.home.arpa/      - Mongo Express
+https://n8n.home.arpa/                  - n8n
+https://nats-monitor.home.arpa/         - NATS Monitor
+https://kong-admin.home.arpa/           - Kong Admin API
+https://kong-manager.home.arpa/         - Kong Manager
+https://authentik.home.arpa/            - Authentik
 ```
 
 ### Conexões TCP
@@ -461,6 +491,8 @@ redis.home.arpa:6379                    - Redis (sem TLS)
 redis.home.arpa:6380                    - Redis (com TLS)
 rabbitmq.home.arpa:5672                 - RabbitMQ AMQP (sem TLS)
 rabbitmq.home.arpa:5671                 - RabbitMQ AMQP (com TLS)
+nats.home.arpa:4222                     - NATS (TCP)
+mongodb.home.arpa:27017                 - MongoDB (TCP)
 ```
 
 ### APIs
@@ -473,4 +505,4 @@ https://elasticsearch.home.arpa         - Elasticsearch API
 
 **✅ Todos os serviços acessíveis via domínios `.home.arpa` da sua rede!**
 
-**Última atualização**: 2025-12-11
+**Última atualização**: 2026-01-30

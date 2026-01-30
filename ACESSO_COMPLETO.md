@@ -10,14 +10,22 @@ Este documento consolida o acesso a todos os serviços instalados no cluster K3s
 
 | Serviço | URL | Usuário | Senha | Documentação |
 |---------|-----|---------|-------|--------------|
-| **Redis Stats** | https://redis-stats.home.arpa/ | admin | Admin@123 | [ACESSO_REDIS_STATS.md](redis/ACESSO_REDIS_STATS.md) |
+| **Redis Stats** | https://redis-stats.home.arpa/ | admin | (mesma do Redis) | [ACESSO_REDIS_STATS.md](redis/ACESSO_REDIS_STATS.md) |
 | **RabbitMQ Management** | https://rabbitmq-mgmt.home.arpa/ | admin | Admin@123 | [ACESSO_RABBITMQ.md](rabbitmq/ACESSO_RABBITMQ.md) |
 | **MinIO Console** | https://minio-console.home.arpa/ | admin | Admin@123 | [ACESSO_MINIO.md](minio/ACESSO_MINIO.md) |
 | **MinIO S3 API** | https://minio-s3.home.arpa/ | admin | Admin@123 | [ACESSO_MINIO.md](minio/ACESSO_MINIO.md) |
 | **Grafana** | https://grafana.home.arpa/ | admin | Admin@123 | [ACESSO_MONITORING.md](monitoring/ACESSO_MONITORING.md) |
 | **Prometheus** | https://prometheus.home.arpa/ | - | - | [ACESSO_MONITORING.md](monitoring/ACESSO_MONITORING.md) |
-| **Kibana** | https://kibana.home.arpa/ | elastic | Admin@123 | [ACESSO_ELK.md](ELK/ACESSO_ELK.md) |
-| **Elasticsearch API** | https://elasticsearch.home.arpa/ | elastic | Admin@123 | [ACESSO_ELK.md](ELK/ACESSO_ELK.md) |
+| **Kibana** | https://kibana.home.arpa/ | - | - | [ACESSO_ELK.md](ELK/ACESSO_ELK.md) |
+| **Elasticsearch API** | https://elasticsearch.home.arpa/ | - | - | [ACESSO_ELK.md](ELK/ACESSO_ELK.md) |
+| **Mongo Express** | https://mongodb-console.home.arpa/ | admin | Admin@123 | [ACESSO_MONGODB.md](mongodb/ACESSO_MONGODB.md) |
+| **MongoDB (TCP)** | mongodb.home.arpa:27017 | admin | Admin@123 | [ACESSO_MONGODB.md](mongodb/ACESSO_MONGODB.md) |
+| **n8n** | https://n8n.home.arpa/ | - | (definida no primeiro acesso) | [ACESSO_N8N.md](n8n/ACESSO_N8N.md) |
+| **NATS Monitor** | https://nats-monitor.home.arpa/ | - | - | [ACESSO_NATS.md](nats/ACESSO_NATS.md) |
+| **NATS (TCP)** | nats.home.arpa:4222 | admin | Admin@123 | [ACESSO_NATS.md](nats/ACESSO_NATS.md) |
+| **Kong Admin API** | https://kong-admin.home.arpa/ | admin | Admin@123 | [ACESSO_KONG.md](kong/ACESSO_KONG.md) |
+| **Kong Manager** | https://kong-manager.home.arpa/ | admin | Admin@123 | [ACESSO_KONG.md](kong/ACESSO_KONG.md) |
+| **Authentik** | https://authentik.home.arpa/ | akadmin | (definida no primeiro acesso) | [ACESSO_AUTHENTIK.md](authentik/ACESSO_AUTHENTIK.md) |
 
 **IP do Traefik (LoadBalancer)**: `192.168.1.51`
 
@@ -42,6 +50,14 @@ cat <<EOF | sudo tee -a /etc/hosts
 192.168.1.51 prometheus.home.arpa
 192.168.1.51 kibana.home.arpa
 192.168.1.51 elasticsearch.home.arpa
+192.168.1.51 mongodb-console.home.arpa
+192.168.1.51 mongodb.home.arpa
+192.168.1.51 n8n.home.arpa
+192.168.1.51 nats-monitor.home.arpa
+192.168.1.51 nats.home.arpa
+192.168.1.51 kong-admin.home.arpa
+192.168.1.51 kong-manager.home.arpa
+192.168.1.51 authentik.home.arpa
 EOF
 ```
 
@@ -56,6 +72,14 @@ $entries = @"
 192.168.1.51 prometheus.home.arpa
 192.168.1.51 kibana.home.arpa
 192.168.1.51 elasticsearch.home.arpa
+192.168.1.51 mongodb-console.home.arpa
+192.168.1.51 mongodb.home.arpa
+192.168.1.51 n8n.home.arpa
+192.168.1.51 nats-monitor.home.arpa
+192.168.1.51 nats.home.arpa
+192.168.1.51 kong-admin.home.arpa
+192.168.1.51 kong-manager.home.arpa
+192.168.1.51 authentik.home.arpa
 "@
 Add-Content C:\Windows\System32\drivers\etc\hosts $entries
 ```
@@ -74,8 +98,11 @@ Add-Content C:\Windows\System32\drivers\etc\hosts $entries
 | MinIO Console | admin | Admin@123 | `kubectl get secret minio-creds -n minio -o jsonpath='{.data.rootPassword}' \| base64 -d` |
 | MinIO S3 API | admin | Admin@123 | Mesma do Console |
 | Grafana | admin | Admin@123 | `kubectl get secret grafana-admin -n monitoring -o jsonpath='{.data.GF_SECURITY_ADMIN_PASSWORD}' \| base64 -d` |
-| Kibana | elastic | Admin@123 | `kubectl get secret elastic-credentials -n elk -o jsonpath='{.data.password}' \| base64 -d` |
-| Elasticsearch | elastic | Admin@123 | Mesma do Kibana |
+| Kibana/Elasticsearch | (depende do xpack security) | (depende do xpack security) | `kubectl get secret elastic-credentials -n elk -o jsonpath='{.data.password}' \| base64 -d` |
+| NATS | admin | Admin@123 | `kubectl get secret nats-auth -n nats -o jsonpath='{.data.password}' \| base64 -d` |
+| MongoDB | admin | Admin@123 | `kubectl get secret mongodb-creds -n mongodb -o jsonpath='{.data.mongo-root-password}' \| base64 -d` |
+| Kong | admin | Admin@123 | `kubectl get secret kong-auth -n kong -o jsonpath='{.data.KONG_PASSWORD}' \| base64 -d` |
+| Authentik | akadmin | (definida no primeiro acesso) | A senha do admin é definida no primeiro acesso via UI |
 
 ### Serviços sem Autenticação (Acesso Direto)
 
@@ -103,8 +130,6 @@ python3 -c "import redis; r=redis.Redis(host='redis.home.arpa', port=6379, passw
 
 ### Documentação
 📖 [Redis - Guia de Acesso Completo](redis/ACESSO_REDIS_STATS.md)
-📖 [Redis - Teste com Domínios](redis/TESTE_COM_DOMINIO.md)
-📖 [Redis - Teste Externo](redis/TESTE_EXTERNO.md)
 
 ---
 
@@ -192,18 +217,17 @@ Importe estes dashboards no Grafana:
 ```bash
 # Kibana via browser
 xdg-open https://kibana.home.arpa/
-# Login: elastic / Admin@123
 
-# Elasticsearch via API
-curl -k -u elastic:Admin@123 https://elasticsearch.home.arpa/_cluster/health?pretty
+# Elasticsearch via API (sem autenticação quando xpack.security.enabled=false)
+curl -k https://elasticsearch.home.arpa/_cluster/health?pretty
 
 # Listar índices
-curl -k -u elastic:Admin@123 https://elasticsearch.home.arpa/_cat/indices?v
+curl -k https://elasticsearch.home.arpa/_cat/indices?v
 ```
 
 ### Primeiros Passos no Kibana
 1. Acesse https://kibana.home.arpa/
-2. Login com **elastic** / **Admin@123**
+2. Se aparecer tela de login, use as credenciais do Secret `elastic-credentials` (usuário/senha)
 3. Vá em **Stack Management** → **Index Patterns**
 4. Crie um index pattern: `filebeat-*`
 5. Vá em **Discover** para visualizar logs
@@ -226,7 +250,11 @@ curl -k -u elastic:Admin@123 https://elasticsearch.home.arpa/_cat/indices?v
 | Grafana | 10Gi | 1 | 10Gi |
 | Loki | 10Gi | 1 | 10Gi |
 | Elasticsearch | 50Gi | 3 réplicas | 150Gi |
-| **TOTAL** | | | **382Gi** |
+| NATS (JetStream) | 5Gi | 1 | 5Gi |
+| MongoDB | 10Gi | 1 | 10Gi |
+| n8n | 5Gi | 1 | 5Gi |
+| Authentik (/media) | 1Gi | 1 | 1Gi |
+| **TOTAL** | | | **403Gi** |
 
 ### Namespaces Utilizados
 
@@ -234,7 +262,12 @@ curl -k -u elastic:Admin@123 https://elasticsearch.home.arpa/_cat/indices?v
 # Listar todos os recursos por namespace
 kubectl get all -n redis
 kubectl get all -n rabbitmq
+kubectl get all -n nats
+kubectl get all -n mongodb
 kubectl get all -n minio
+kubectl get all -n n8n
+kubectl get all -n kong
+kubectl get all -n authentik
 kubectl get all -n monitoring
 kubectl get all -n elk
 ```
@@ -254,7 +287,7 @@ echo "Status dos Serviços K3s"
 echo "========================================="
 echo ""
 
-for ns in redis rabbitmq minio monitoring elk; do
+for ns in redis rabbitmq nats mongodb minio n8n kong authentik monitoring elk; do
   echo "📊 Namespace: $ns"
   kubectl get pods -n $ns
   echo ""
@@ -287,6 +320,21 @@ kubectl logs -n redis redis-master-0 -f
 # RabbitMQ
 kubectl logs -n rabbitmq rabbitmq-0 -f
 
+# NATS
+kubectl logs -n nats nats-0 -f
+
+# MongoDB
+kubectl logs -n mongodb mongodb-0 -f
+
+# n8n
+kubectl logs -n n8n -l app.kubernetes.io/name=n8n -f
+
+# Kong
+kubectl logs -n kong -l app=kong -f
+
+# Authentik
+kubectl logs -n authentik -l app.kubernetes.io/name=authentik-server -f
+
 # MinIO
 kubectl logs -n minio minio-0 -f
 
@@ -312,6 +360,22 @@ kubectl rollout restart statefulset/redis-replica -n redis
 
 # RabbitMQ
 kubectl rollout restart statefulset/rabbitmq -n rabbitmq
+
+# NATS
+kubectl rollout restart statefulset/nats -n nats
+
+# MongoDB
+kubectl rollout restart statefulset/mongodb -n mongodb
+
+# n8n
+kubectl rollout restart deployment/n8n -n n8n
+
+# Kong
+kubectl rollout restart deployment/kong -n kong
+
+# Authentik
+kubectl rollout restart deployment/authentik-server -n authentik
+kubectl rollout restart deployment/authentik-worker -n authentik
 
 # MinIO
 kubectl rollout restart statefulset/minio -n minio
@@ -429,7 +493,6 @@ elasticsearch.elk.svc.cluster.local:9200
 - [ELK](ELK/install-elk-k3s.sh)
 
 ### Documentação de Revisão
-- [Revisão Completa](COMPLETE_REVISION_SUMMARY.md)
 - [DNS Standards](DNS-STANDARDS.md)
 - [Como Usar Scripts](COMO_USAR_SCRIPTS.md)
 - [Traefik Guide](k3s-setup/TRAEFIK_GUIDE.md)
@@ -449,6 +512,6 @@ elasticsearch.elk.svc.cluster.local:9200
 
 ---
 
-**Última atualização**: 2025-12-11
+**Última atualização**: 2026-01-30
 **Cluster**: K3s homelab
 **IP LoadBalancer**: 192.168.1.51

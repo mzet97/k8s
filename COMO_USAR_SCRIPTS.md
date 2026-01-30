@@ -1,8 +1,9 @@
 # Como Usar os Scripts de Instalação
 
-## ⚠️ IMPORTANTE: NÃO USE SUDO!
+## ⚠️ IMPORTANTE: não use sudo para rodar scripts
 
-Todos os scripts devem ser executados como usuário `k8s1` **SEM sudo**.
+Todos os scripts de instalação devem ser executados como usuário `k8s1` **sem sudo**.
+Use `sudo` apenas quando o passo envolver o sistema operacional (por exemplo: editar `/etc/hosts` ou ajustar permissões), e quando estiver explicitamente indicado.
 
 ---
 
@@ -215,4 +216,4 @@ kubectl get events -n <namespace> --sort-by='.lastTimestamp'
 
 ---
 
-**Última atualização**: 2025-12-11
+**Última atualização**: 2026-01-30

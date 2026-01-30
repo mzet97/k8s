@@ -10,12 +10,12 @@ O **ELK Stack** (Elasticsearch + Logstash + Kibana + Filebeat) está disponível
 ## 🔐 Credenciais de Acesso
 
 ### Kibana
-- **Usuário**: `elastic`
-- **Senha**: `Admin@123`
+- **Autenticação**: por padrão, sem login (quando `xpack.security.enabled: false`)
+- **Se habilitar segurança**: use o Secret `elastic-credentials` (padrão: `elastic` / `Admin@123`)
 
 ### Elasticsearch API
-- **Usuário**: `elastic`
-- **Senha**: `Admin@123`
+- **Autenticação**: por padrão, sem login (quando `xpack.security.enabled: false`)
+- **Se habilitar segurança**: use o Secret `elastic-credentials` (padrão: `elastic` / `Admin@123`)
 
 ## 📋 Informações da Instalação
 
@@ -515,11 +515,13 @@ logstash.elk.svc.cluster.local:5044
 
 ## 🔒 Segurança
 
-### Autenticação Habilitada
+### Autenticação (por padrão desabilitada)
 
-✅ **X-Pack Security** está habilitado por padrão com as seguintes credenciais:
-- **Usuário**: `elastic`
-- **Senha**: `Admin@123`
+Por padrão, este setup roda com `xpack.security.enabled: false`, então:
+- Kibana e Elasticsearch ficam acessíveis sem login
+- O Secret `elastic-credentials` ainda existe e é usado pelos componentes para configuração/conexão
+
+Se você habilitar o X-Pack Security no Elasticsearch, use o Secret `elastic-credentials` como fonte de usuário/senha.
 
 ### Recuperar Credenciais
 
@@ -534,9 +536,9 @@ kubectl get secret elastic-credentials -n elk -o jsonpath='{.data.password}' | b
 echo
 ```
 
-### Alterar Senha
+### Alterar Credenciais do Secret (opcional)
 
-Para alterar a senha do usuário `elastic`:
+Para alterar usuário/senha armazenados no Secret `elastic-credentials`:
 
 ```bash
 # Opção 1: Atualizar o secret

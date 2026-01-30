@@ -26,8 +26,8 @@ Configuração completa do MinIO com Traefik, incluindo:
 3. **Configure o /etc/hosts:**
    ```bash
    NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
-   echo "$NODE_IP minio-console.local" | sudo tee -a /etc/hosts
-   echo "$NODE_IP minio-s3.local" | sudo tee -a /etc/hosts
+   echo "$NODE_IP minio-console.home.arpa" | sudo tee -a /etc/hosts
+   echo "$NODE_IP minio-s3.home.arpa" | sudo tee -a /etc/hosts
    ```
 
 4. **Verifique a configuração:**
@@ -37,8 +37,8 @@ Configuração completa do MinIO com Traefik, incluindo:
    ```
 
 5. **Acesse no navegador:**
-   - Console: `https://minio-console.local`
-   - S3 API: `https://minio-s3.local`
+   - Console: `https://minio-console.home.arpa`
+   - S3 API: `https://minio-s3.home.arpa`
 
 ## Adaptando para suas Aplicações
 
