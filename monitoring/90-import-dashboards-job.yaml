@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards-import
+  namespace: monitoring
+data:
+  import.sh: |
+    #!/bin/sh
+    set -e
+
+    GRAFANA_URL="http://grafana.monitoring.svc:3000"
+    AUTH="admin:Admin@123"
+
+    import_dashboard() {
+      ID=$1
+      NAME=$2
+      DS_NAME=${3:-DS_PROMETHEUS}
+
+      echo "Importing dashboard $ID ($NAME)..."
+
+      # Download from grafana.com
+      DASHBOARD=$(wget -qO- "https://grafana.com/api/dashboards/$ID/revisions/latest/download" 2>/dev/null)
+
+      if [ -z "$DASHBOARD" ]; then
+        echo "  Failed to download"
+        return 1
+      fi
+
+      # Create import payload
+      cat > /tmp/payload.json << EOFP
+    {
+      "dashboard": $DASHBOARD,
+      "overwrite": true,
+      "inputs": [
+        {"name": "$DS_NAME", "type": "datasource", "pluginId": "prometheus", "value": "Prometheus"}
+      ],
+      "folderId": 0
+    }
+    EOFP
+
+      # Import
+      RESULT=$(wget -qO- --post-file=/tmp/payload.json \
+        --header="Content-Type: application/json" \
+        --user=admin --password=Admin@123 \
+        "$GRAFANA_URL/api/dashboards/import" 2>/dev/null)
+
+      if echo "$RESULT" | grep -q "success\|imported"; then
+        echo "  OK"
+      else
+        echo "  Result: $RESULT"
+      fi
+    }
+
+    # Import dashboards
+    import_dashboard 1860 "Node Exporter Full" "DS_PROMETHEUS"
+    import_dashboard 315 "Kubernetes Cluster" "DS_PROMETHEUS"
+    import_dashboard 763 "Redis" "DS_PROMETHEUS"
+    import_dashboard 10991 "RabbitMQ Overview" "DS_PROMETHEUS"
+    import_dashboard 2279 "NATS Server" "DS_PROMETHEUS"
+    import_dashboard 13502 "MinIO" "DS_PROMETHEUS"
+    import_dashboard 2583 "MongoDB" "DS_PROMETHEUS"
+    import_dashboard 7424 "Kong" "DS_PROMETHEUS"
+
+    echo "Done!"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: grafana-import-dashboards
+  namespace: monitoring
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: import
+        image: busybox:latest
+        command: ["/bin/sh", "/scripts/import.sh"]
+        volumeMounts:
+        - name: scripts
+          mountPath: /scripts
+      volumes:
+      - name: scripts
+        configMap:
+          name: grafana-dashboards-import
+          defaultMode: 0755

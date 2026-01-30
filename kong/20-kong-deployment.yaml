@@ -45,6 +45,10 @@ spec:
           containerPort: 8001
         - name: admin-ssl
           containerPort: 8444
+        - name: manager
+          containerPort: 8002
+        - name: manager-ssl
+          containerPort: 8445
         - name: status
           containerPort: 8100
         livenessProbe:

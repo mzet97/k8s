@@ -33,6 +33,10 @@ spec:
               value: "https://n8n.home.arpa/"
             - name: GENERIC_TIMEZONE
               value: "America/Sao_Paulo"
+            - name: N8N_METRICS
+              value: "true"
+            - name: N8N_METRICS_PREFIX
+              value: "n8n_"
           resources:
             requests:
               memory: "256Mi"

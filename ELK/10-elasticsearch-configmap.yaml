@@ -11,10 +11,9 @@ data:
     cluster.name: homelab-elasticsearch
     node.name: ${NODE_NAME}
     node.roles: [ master, data, ingest ]
-    discovery.seed_hosts: ["elasticsearch-headless"]
-    cluster.initial_master_nodes: ["elasticsearch-0", "elasticsearch-1", "elasticsearch-2"]
+    discovery.type: single-node
     network.host: 0.0.0.0
-    xpack.security.enabled: true
+    xpack.security.enabled: false
     xpack.security.transport.ssl.enabled: false
     xpack.security.http.ssl.enabled: false
     indices.query.bool.max_clause_count: 2048

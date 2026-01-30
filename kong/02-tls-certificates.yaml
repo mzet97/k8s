@@ -8,10 +8,10 @@ spec:
   issuerRef:
     name: local-ca
     kind: ClusterIssuer
-  commonName: kong.local
+  commonName: kong.home.arpa
   dnsNames:
-  - kong.local
-  - "*.kong.local"
+  - kong.home.arpa
+  - "*.kong.home.arpa"
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -23,6 +23,20 @@ spec:
   issuerRef:
     name: local-ca
     kind: ClusterIssuer
-  commonName: kong-admin.local
+  commonName: kong-admin.home.arpa
   dnsNames:
-  - kong-admin.local
+  - kong-admin.home.arpa
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kong-manager-cert
+  namespace: kong
+spec:
+  secretName: kong-manager-tls
+  issuerRef:
+    name: local-ca
+    kind: ClusterIssuer
+  commonName: kong-manager.home.arpa
+  dnsNames:
+  - kong-manager.home.arpa

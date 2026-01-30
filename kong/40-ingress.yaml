@@ -4,20 +4,18 @@ metadata:
   name: kong-admin-ingress
   namespace: kong
   annotations:
+    kubernetes.io/ingress.class: traefik
+    cert-manager.io/cluster-issuer: local-ca
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.tls: "true"
-    # Basic Auth usando o secret criado em 01-secret.yaml
-    nginx.ingress.kubernetes.io/auth-type: basic
-    nginx.ingress.kubernetes.io/auth-secret: kong-admin-auth
-    nginx.ingress.kubernetes.io/auth-realm: "Authentication Required - Kong Admin"
 spec:
   ingressClassName: traefik
   tls:
   - hosts:
-    - kong-admin.local
+    - kong-admin.home.arpa
     secretName: kong-admin-tls
   rules:
-  - host: kong-admin.local
+  - host: kong-admin.home.arpa
     http:
       paths:
       - path: /
@@ -27,3 +25,31 @@ spec:
             name: kong-admin
             port:
               number: 8001
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kong-manager-ingress
+  namespace: kong
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    cert-manager.io/cluster-issuer: local-ca
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  tls:
+  - hosts:
+    - kong-manager.home.arpa
+    secretName: kong-manager-tls
+  rules:
+  - host: kong-manager.home.arpa
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: kong-admin
+            port:
+              number: 8002

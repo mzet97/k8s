@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: authentik-config
+  namespace: authentik
+data:
+  # Usando IP direto pois o DNS spsql.home.arpa não resolve dentro do cluster
+  AUTHENTIK_POSTGRESQL__HOST: "192.168.1.52"
+  AUTHENTIK_POSTGRESQL__PORT: "5432"
+  AUTHENTIK_POSTGRESQL__NAME: "authentik"
+  AUTHENTIK_REDIS__HOST: "redis-master.redis.svc.cluster.local"
+  AUTHENTIK_REDIS__PORT: "6379"
+  AUTHENTIK_ERROR_REPORTING__ENABLED: "false"
+  AUTHENTIK_DISABLE_STARTUP_CHECK: "false"
+  AUTHENTIK_LOG_LEVEL: "info"

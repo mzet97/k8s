@@ -8,6 +8,7 @@ data:
     database = off
     proxy_listen = 0.0.0.0:8000, 0.0.0.0:8443 ssl
     admin_listen = 0.0.0.0:8001, 0.0.0.0:8444 ssl
+    admin_gui_listen = 0.0.0.0:8002, 0.0.0.0:8445 ssl
     status_listen = 0.0.0.0:8100
     declarative_config = /kong_configs/kong.yml
   kong.yml: |

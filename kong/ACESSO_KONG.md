@@ -24,7 +24,12 @@ A API de administração está protegida por Basic Auth e exposta via Ingress.
   curl -u admin:Admin@123 -k https://kong-admin.local/status
   ```
 
-### 3. Métricas e Status
+### 3. Kong Manager (Interface Web)
+O Kong Manager Open Source foi habilitado para gestão visual das APIs.
+- **URL**: `https://kong-manager.local` (Requer ajuste no `/etc/hosts`)
+- **Credenciais**: `admin` / `Admin@123`
+
+### 4. Métricas e Status
 O status interno pode ser verificado diretamente no pod:
 - **Porta**: `8100` (interno)
 

@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/component: elasticsearch
 spec:
   serviceName: elasticsearch-headless
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: elasticsearch
@@ -44,7 +44,7 @@ spec:
                   name: elastic-credentials
                   key: password
             - name: xpack.security.enabled
-              value: "true"
+              value: "false"
           volumeMounts:
             - name: es-config
               mountPath: /usr/share/elasticsearch/config/elasticsearch.yml

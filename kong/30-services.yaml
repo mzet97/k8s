@@ -31,3 +31,12 @@ spec:
   - name: admin-ssl
     port: 8444
     targetPort: 8444
+  - name: manager
+    port: 8002
+    targetPort: 8002
+  - name: manager-ssl
+    port: 8445
+    targetPort: 8445
+  - name: status
+    port: 8100
+    targetPort: 8100

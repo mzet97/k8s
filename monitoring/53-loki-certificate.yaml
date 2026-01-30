@@ -1,0 +1,12 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: loki-tls
+  namespace: monitoring
+spec:
+  secretName: loki-tls
+  dnsNames:
+  - loki.home.arpa
+  issuerRef:
+    kind: ClusterIssuer
+    name: local-ca
